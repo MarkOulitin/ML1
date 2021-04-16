@@ -41,9 +41,7 @@ def print_missing_values_percentage(df):
         perc = n_miss / df.shape[0] * 100
         print('> %d, Missing: %d (%.1f%%)' % (i, n_miss, perc))
 
-def impute(df):
-    data = df.values
-    X, y = data[:, 2:], data[:, 1]
+def impute(X, y):
     # print total missing
     print('Missing: %d' % sum(np.isnan(X).flatten()))
     # define imputer
@@ -62,24 +60,29 @@ def filter_by_features(feature_list, i, df):
 
 
 def changePosNegToNumber(y):
-    return np.where(y == 'negative', 0, 1)
+    return np.where(y == 'negative', np.float64(0), np.float64(0))
 
 
 def main(filename):
+    float_features = [
+        'Hematocrit', 'Hemoglobin',
+        'Platelets', 'Red blood Cells', 'Lymphocytes',
+        'Mean corpuscular hemoglobin concentration (MCHC)',
+        'Mean corpuscular hemoglobin (MCH)', 'Leukocytes', 'Basophils',
+        'Eosinophils', 'Lactic Dehydrogenase', 'Mean corpuscular volume (MCV)',
+        'Red blood cell distribution width (RDW)', 'Monocytes',
+        'Mean platelet volume ', 'Neutrophils', 'Proteina C reativa mg/dL',
+        'Creatinine', 'Urea', 'Potassium', 'Sodium', 'Aspartate transaminase',
+        'Alanine transaminase',
+    ]
     dtypes = {
         'Patient ID': np.dtype('U'),
         'SARS-Cov-2 exam result': np.dtype('U'),
-                 'Hematocrit', 'Hemoglobin',
-             'Platelets', 'Red blood Cells', 'Lymphocytes',
-             'Mean corpuscular hemoglobin concentration (MCHC)',
-             'Mean corpuscular hemoglobin (MCH)', 'Leukocytes', 'Basophils',
-             'Eosinophils', 'Lactic Dehydrogenase', 'Mean corpuscular volume (MCV)',
-             'Red blood cell distribution width (RDW)', 'Monocytes',
-             'Mean platelet volume ', 'Neutrophils', 'Proteina C reativa mg/dL',
-             'Creatinine', 'Urea', 'Potassium', 'Sodium', 'Aspartate transaminase',
-             'Alanine transaminase'
     }
-    df = pd.read_csv(filename, dtype=)
+    for float_feature in float_features:
+        dtypes[float_feature] = np.dtype('f')
+
+    df = pd.read_csv(filename, dtype=dtypes)
     feature_list = [attribute for index, attribute in enumerate(list(df)) if index in features]
     df = df[df.columns[features]]
     df = filter_by_features(feature_list, 2, df)
@@ -89,8 +92,10 @@ def main(filename):
 
     data = df.values
     X, y = data[:, 2:], data[:, 1]
+    X = X.astype('float64')
+    y = y.astype('int32')
     print(df.shape)
-    # impute(df)
+    impute(X, y)
     print(df.columns)
     # pipeline = Pipeline(steps=[('i', IterativeImputer()), ('m', RandomForestClassifier())])
 
