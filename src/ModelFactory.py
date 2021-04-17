@@ -16,7 +16,7 @@ class ModelFactory:
 
 class LogisticRegressionFactory(ModelFactory):
     def name(self):
-        return "Logistic Regression"
+        return "LR"
 
     def get_params_grid(self):
         return {}
@@ -27,7 +27,7 @@ class LogisticRegressionFactory(ModelFactory):
 
 class RandomForestFactory(ModelFactory):
     def name(self):
-        return "Random Forest"
+        return "RF"
 
     def get_params_grid(self):
         return {
@@ -49,4 +49,4 @@ class XGBoostFactory(ModelFactory):
         }
 
     def create_default_classifier(self):
-        return XGBClassifier()
+        return XGBClassifier(use_label_encoder=False)

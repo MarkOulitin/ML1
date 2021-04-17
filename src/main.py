@@ -161,7 +161,6 @@ def calculate_test_metrics(X, y, params, model_factory):
                "AUROC": []}
     retrain(X, y, params, model_factory, results)
     normalize_metric_results(results)
-    results = convert_results_dict_to_list(results)
     return results
 
 
@@ -171,7 +170,7 @@ def retrain(X, y, params, model_factory, results):
 
 
 def retrain_iter(X, y, params, model_factory, results, i):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=i)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     model = get_retrain_model(params, model_factory, i)
     model.fit(X_train, y_train)
     prediction = model.predict(X_test)
@@ -189,55 +188,92 @@ def get_retrain_model(params, model_factory, i):
 
 
 def append_scores(results, y_test, prediction):
-    results["Accuracy"].append(accuracy_score(y_test, prediction))
-    results["F1-score"].append(f1_score(y_test, prediction))
-    results["Sensitivity"].append(sensitivity_score(y_test, prediction))
-    results["Specificity"].append(specificity_score(y_test, prediction))
-    results["AUROC"].append(roc_auc_score(y_test, prediction))
+    score_evals = [
+        ('Accuracy', accuracy_score),
+        ('F1-score', f1_score),
+        ('Sensitivity', sensitivity_score),
+        ('Specificity', specificity_score),
+        ('AUROC', roc_auc_score),
+    ]
+    for score_eval in score_evals:
+        results[score_eval[0]].append(score_eval[1](y_test, prediction))
 
 
 def normalize_metric_results(results):
-    temp = np.array(results["Accuracy"])
-    results["Accuracy"] = np.mean(temp), np.std(temp)
-    temp = np.array(results["F1-score"])
-    results["F1-score"] = np.mean(temp), np.std(temp)
-    temp = np.array(results["Sensitivity"])
-    results["Sensitivity"] = np.mean(temp), np.std(temp)
-    temp = np.array(results["Specificity"])
-    results["Specificity"] = np.mean(temp), np.std(temp)
-    temp = np.array(results["AUROC"])
-    results["AUROC"] = np.mean(temp), np.std(temp)
+    for metric in results.keys():
+        np_arr = np.array(results[metric])
+        results[metric] = np.mean(np_arr), np.std(np_arr)
 
 
-def convert_results_dict_to_list(results):
-    return [
-        ('Accuracy', results["Accuracy"]),
-        ('F1-score', results["F1-score"]),
-        ('Sensitivity', results["Sensitivity"]),
-        ('Specificity', results["Specificity"]),
-        ('AUROC', results["AUROC"])
+def print_all_results(results):
+    models = [
+        LogisticRegressionFactory(),
+        RandomForestFactory(),
+        XGBoostFactory(),
     ]
+    metrics = [
+        'Accuracy',
+        'F1-score',
+        'Sensitivity',
+        'Specificity',
+        'AUROC'
+    ]
+
+    print('\nFinal results:\n')
+    print('+-------------+-----------+-----------+-------------+-------------+-----------+')
+    print_metric_headers(metrics)
+    print('+-------------+-----------+-----------+-------------+-------------+-----------+')
+    for model in models:
+        print_model_results(metrics, model, results)
+    print('+-------------+-----------+-----------+-------------+-------------+-----------+')
+
+
+def print_metric_headers(metrics):
+    print('| Model\\Score |', end='')
+    for metric in metrics:
+        print(f' {metric: <9} |', end='')
+    print('')
+
+
+def print_model_results(metrics, model, results):
+    model_results = results[model.name()]
+    print(f'| {model.name(): <11} |', end='')
+    for metric in metrics:
+        print_model_metric(metric, model_results)
+    print('')
+
+
+def print_model_metric(metric, model_results):
+    value = model_results[metric]
+    value_str = f'{value[0]:.2f}±{value[1]:.2f}'
+    print(f' {value_str.ljust(max(9, len(metric)))} |', end='')
+
+
+def train_models(X, y):
+    models = [
+        LogisticRegressionFactory(),
+        XGBoostFactory(),
+        RandomForestFactory(),
+    ]
+    final_results = {}
+    for model in models:
+        results = train_model(X, y, model)
+        final_results[model.name()] = results
+    return final_results
+
+
+def train_model(X, y, model_factory):
+    params = find_best_hyperparams(X, y, model_factory)
+    results = calculate_test_metrics(X, y, params, model_factory)
+    return results
 
 
 def main(filename):
     df = pd.read_csv(filename)
     X, y = preprocessing(df)
     print("finish preprocessing")
-    models = [
-        LogisticRegressionFactory(),
-        RandomForestFactory(),
-        XGBoostFactory()
-    ]
-    for model in models:
-        train_model(X, y, model)
-
-
-def train_model(X, y, model_factory):
-    params = find_best_hyperparams(X, y, model_factory)
-    results = calculate_test_metrics(X, y, params, model_factory)
-    print(f'{model_factory.name()} results:')
-    pprint(results)
-    print('')
+    final_results = train_models(X, y)
+    print_all_results(final_results)
 
 
 if __name__ == '__main__':
