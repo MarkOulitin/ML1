@@ -46,8 +46,17 @@ options_random_forest = {'classifier__n_estimators': list(range(10, 40, 10)) + l
 options_xgboost = {"learning_rate": [0.01, 0.05, 0.1]}
 
 
-def filter_by_features(feature_list, i, df):
-    return df[df[feature_list[i]].notna()]
+def split_to_data_and_target(df: pd.DataFrame):
+    data = df.values
+    X, y = data[:, 2:], data[:, 1]
+    X = X.astype('float64')
+    y = y.astype('int32')
+    return X, y
+
+
+def convert_sars_cov_exam_results_to_binary(df: pd.DataFrame):
+    df.loc[df[df.columns[1]] == 'positive', [df.columns[1]]] = 1
+    df.loc[df[df.columns[1]] == 'negative', [df.columns[1]]] = 0
 
 
 def filter_nulls(df: pd.DataFrame):
@@ -60,26 +69,21 @@ def filter_nulls(df: pd.DataFrame):
     return df[df.apply(predicate, axis=1)]
 
 
-def changePosNegToNumber(y):
-    return np.where(y == 'negative', 0, 1)
+def project_columns(df: pd.DataFrame):
+    return df[df.columns[features]]
 
 
-# @ignore_warnings(category=ConvergenceWarning)
-def preprocessing(filename):
-    df = pd.read_csv(filename)
-    df = df[df.columns[features]]
-    df = filter_nulls(df)
-
-    df.loc[df[df.columns[1]] == 'positive', [df.columns[1]]] = 1
-    df.loc[df[df.columns[1]] == 'negative', [df.columns[1]]] = 0
-
-    data = df.values
-    X, y = data[:, 2:], data[:, 1]
-    X = X.astype('float64')
-    y = y.astype('int32')
+def impute(X):
     imputer = IterativeImputer(max_iter=250)
     imputer.fit(X)
-    return imputer.transform(X), y
+    return imputer.transform(X)
+
+def preprocessing(df):
+    df = project_columns(df)
+    df = filter_nulls(df)
+    convert_sars_cov_exam_results_to_binary(df)
+    X, y = split_to_data_and_target(df)
+    return impute(X), y
 
 
 def main(filename):
