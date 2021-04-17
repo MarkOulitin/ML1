@@ -4,17 +4,16 @@ from pprint import pprint
 import pandas as pd
 import numpy as np
 from imblearn.metrics import sensitivity_score, specificity_score
-from imblearn.over_sampling import SMOTE, SVMSMOTE
-from numpy import mean, std
+from imblearn.over_sampling import SVMSMOTE
 
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from imblearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
-from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score, KFold, GridSearchCV, train_test_split
-from sklearn.utils._testing import ignore_warnings
-from sklearn.exceptions import ConvergenceWarning
+from sklearn.model_selection import KFold, GridSearchCV, train_test_split
+
+from ModelFactory import *
 
 features = [0,
             2,
@@ -41,10 +40,6 @@ features = [0,
             44,
             48,
             47]
-
-options_random_forest = {'classifier__n_estimators': list(range(10, 40, 10)) + list(range(45, 105, 5)),
-                         'classifier__max_depth': [2 ** i for i in range(1, 7)]}
-options_xgboost = {"learning_rate": [0.01, 0.05, 0.1]}
 
 
 def split_to_data_and_target(df: pd.DataFrame):
@@ -89,7 +84,16 @@ def preprocessing(df):
 
 
 # template code taken from https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
-def find_best_hyperparams(X, y):
+def find_best_hyperparams(X, y, model_factory):
+    pipeline_name_classifier = 'classifier'
+    pipeline_classifier_params_prefix = f'{pipeline_name_classifier}__'
+    params_grid = convert_params_dict_to_pipeline_params(
+        model_factory.get_params_grid(),
+        pipeline_classifier_params_prefix
+    )
+    print('Params grid:')
+    pprint(params_grid)
+
     outer_cv = KFold(n_splits=5)
     best_score = None
     best_params = None
@@ -100,11 +104,11 @@ def find_best_hyperparams(X, y):
         inner_cv = KFold(n_splits=5)
         model = Pipeline([
             ('over_sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
-            ('classifier', RandomForestClassifier())
+            (pipeline_name_classifier, model_factory.create_default_classifier())
         ])
         gridCV = GridSearchCV(
             estimator=model,
-            param_grid=options_random_forest,
+            param_grid=params_grid,
             scoring='f1',
             cv=inner_cv,
             refit=True
@@ -131,38 +135,52 @@ def find_best_hyperparams(X, y):
     print("score:")
     print(best_score)
 
-    return best_params
+    return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
 
 
-def calculate_test_metrics(X, y, params):
+def convert_params_dict_to_pipeline_params(params, prefix):
+    result = {}
+    for param in params.keys():
+        result[f'{prefix}{param}'] = params[param]
+    return result
+
+
+def convert_pipeline_params_to_params_dict(params, prefix):
+    result = {}
+    param_name_start = len(prefix)
+    for param in params.keys():
+        result[param[param_name_start:]] = params[param]
+    return result
+
+
+def calculate_test_metrics(X, y, params, model_factory):
     results = {"Accuracy": [],
                "F1-score": [],
                "Sensitivity": [],
                "Specificity": [],
                "AUROC": []}
-    retrain(X, y, params, results)
+    retrain(X, y, params, model_factory, results)
     normalize_metric_results(results)
+    results = convert_results_dict_to_list(results)
     return results
 
 
-def retrain(X, y, params, results):
+def retrain(X, y, params, model_factory, results):
     for i in range(1, 11):
-        retrain_iter(X, y, params, results, i)
+        retrain_iter(X, y, params, model_factory, results, i)
 
 
-def retrain_iter(X, y, params, results, i):
+def retrain_iter(X, y, params, model_factory, results, i):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=i)
-    model = get_retrain_model(params, i)
+    model = get_retrain_model(params, model_factory, i)
     model.fit(X_train, y_train)
     prediction = model.predict(X_test)
     append_scores(results, y_test, prediction)
 
 
-def get_retrain_model(params, i):
-    clf = RandomForestClassifier(
-        n_estimators=params.get("classifier__n_estimators"),
-        max_depth=params.get("classifier__max_depth")
-    )
+def get_retrain_model(params, model_factory, i):
+    clf = model_factory.create_default_classifier()
+    clf.set_params(**params)
     model = Pipeline([
         ('over sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
         ('model', clf)
@@ -191,12 +209,35 @@ def normalize_metric_results(results):
     results["AUROC"] = np.mean(temp), np.std(temp)
 
 
+def convert_results_dict_to_list(results):
+    return [
+        ('Accuracy', results["Accuracy"]),
+        ('F1-score', results["F1-score"]),
+        ('Sensitivity', results["Sensitivity"]),
+        ('Specificity', results["Specificity"]),
+        ('AUROC', results["AUROC"])
+    ]
+
+
 def main(filename):
-    X, y = preprocessing(filename)
+    df = pd.read_csv(filename)
+    X, y = preprocessing(df)
     print("finish preprocessing")
-    params = find_best_hyperparams(X, y)
-    results = calculate_test_metrics(X, y, params)
+    models = [
+        LogisticRegressionFactory(),
+        RandomForestFactory(),
+        XGBoostFactory()
+    ]
+    for model in models:
+        train_model(X, y, model)
+
+
+def train_model(X, y, model_factory):
+    params = find_best_hyperparams(X, y, model_factory)
+    results = calculate_test_metrics(X, y, params, model_factory)
+    print(f'{model_factory.name()} results:')
     pprint(results)
+    print('')
 
 
 if __name__ == '__main__':
