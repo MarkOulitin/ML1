@@ -1,4 +1,3 @@
-from collections import Counter
 from pprint import pprint
 
 import pandas as pd
@@ -9,7 +8,6 @@ from imblearn.over_sampling import SVMSMOTE
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from imblearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
 from sklearn.model_selection import KFold, GridSearchCV, train_test_split
 
@@ -207,9 +205,11 @@ def normalize_metric_results(results):
 
 def print_all_results(results):
     models = [
-        LogisticRegressionFactory(),
-        RandomForestFactory(),
-        XGBoostFactory(),
+        LogisticRegressionFactory,
+        RandomForestFactory,
+        XGBoostFactory,
+        CatBoostFactory,
+        LightGbmFactory,
     ]
     metrics = [
         'Accuracy',
@@ -223,8 +223,10 @@ def print_all_results(results):
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
     print_metric_headers(metrics)
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
-    for model in models:
-        print_model_results(metrics, model, results)
+    for model_factory_class in models:
+        model = model_factory_class()
+        if model.name() in results:
+            print_model_results(metrics, model, results)
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
 
 
@@ -251,14 +253,17 @@ def print_model_metric(metric, model_results):
 
 def train_models(X, y):
     models = [
-        LogisticRegressionFactory(),
-        XGBoostFactory(),
-        RandomForestFactory(),
+        LogisticRegressionFactory,
+        XGBoostFactory,
+        RandomForestFactory,
+        CatBoostFactory,
+        LightGbmFactory,
     ]
     final_results = {}
-    for model in models:
-        results = train_model(X, y, model)
-        final_results[model.name()] = results
+    for model_factory_class in models:
+        model_factory = model_factory_class()
+        results = train_model(X, y, model_factory)
+        final_results[model_factory.name()] = results
     return final_results
 
 

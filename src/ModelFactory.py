@@ -1,6 +1,8 @@
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
 
 
 class ModelFactory:
@@ -12,6 +14,9 @@ class ModelFactory:
 
     def create_default_classifier(self):
         raise NotImplementedError()
+
+    def __str__(self):
+        return self.name()
 
 
 class LogisticRegressionFactory(ModelFactory):
@@ -50,3 +55,33 @@ class XGBoostFactory(ModelFactory):
 
     def create_default_classifier(self):
         return XGBClassifier(use_label_encoder=False)
+
+
+class CatBoostFactory(ModelFactory):
+    def name(self):
+        return "CatBoost"
+
+    def get_params_grid(self):
+        return {
+            # TODO
+            # "learning_rate": [0.01, 0.05, 0.1],
+            # "n_estimators": [1] + list(range(10, 110, 20))
+        }
+
+    def create_default_classifier(self):
+        return CatBoostClassifier()
+
+
+class LightGbmFactory(ModelFactory):
+    def name(self):
+        return "LightGBM"
+
+    def get_params_grid(self):
+        return {
+            # TODO
+            "learning_rate": [0.01, 0.05, 0.1],
+            "n_estimators": [1] + list(range(10, 110, 20))
+        }
+
+    def create_default_classifier(self):
+        return LGBMClassifier()
