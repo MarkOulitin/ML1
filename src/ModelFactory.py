@@ -54,7 +54,7 @@ class XGBoostFactory(ModelFactory):
         }
 
     def create_default_classifier(self):
-        return XGBClassifier(use_label_encoder=False)
+        return XGBClassifier(use_label_encoder=False, verbosity=0)
 
 
 class CatBoostFactory(ModelFactory):
@@ -63,13 +63,11 @@ class CatBoostFactory(ModelFactory):
 
     def get_params_grid(self):
         return {
-            # TODO
-            # "learning_rate": [0.01, 0.05, 0.1],
-            # "n_estimators": [1] + list(range(10, 110, 20))
+            "learning_rate": [0.01, 0.05, 0.1]
         }
 
     def create_default_classifier(self):
-        return CatBoostClassifier()
+        return CatBoostClassifier(verbose=False)
 
 
 class LightGbmFactory(ModelFactory):
@@ -78,9 +76,7 @@ class LightGbmFactory(ModelFactory):
 
     def get_params_grid(self):
         return {
-            # TODO
-            "learning_rate": [0.01, 0.05, 0.1],
-            "n_estimators": [1] + list(range(10, 110, 20))
+            "learning_rate": [0.01, 0.05, 0.1]
         }
 
     def create_default_classifier(self):

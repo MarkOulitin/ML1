@@ -89,12 +89,14 @@ def find_best_hyperparams(X, y, model_factory):
         model_factory.get_params_grid(),
         pipeline_classifier_params_prefix
     )
+    print(f"running {model_factory.name()}:")
     print('Params grid:')
     pprint(params_grid)
 
     outer_cv = KFold(n_splits=5)
     best_score = None
     best_params = None
+    i = 0
     for train_xi, test_xi in outer_cv.split(X):
         X_train, X_test = X[train_xi, :], X[test_xi, :]
         y_train, y_test = y[train_xi], y[test_xi]
@@ -107,7 +109,7 @@ def find_best_hyperparams(X, y, model_factory):
         gridCV = GridSearchCV(
             estimator=model,
             param_grid=params_grid,
-            scoring='f1',
+            scoring='f1_macro',
             cv=inner_cv,
             refit=True
         )
@@ -117,21 +119,22 @@ def find_best_hyperparams(X, y, model_factory):
         params = result.best_params_
 
         y_predict = best_model.predict(X_test)
-        score = f1_score(y_test, y_predict)
+        score = f1_score(y_test, y_predict, average='macro')
 
-        print("Current model:")
+        print(f"inner cross validation iteration {i} params:")
         pprint(result.best_params_)
-        print("Score:")
-        print(score)
+        print(f"score: {score}")
 
         if best_score is None or score > best_score:
             best_score = score
             best_params = params
 
-    print("Final result:")
+        i += 1
+
+    print("best params:")
     pprint(best_params)
-    print("score:")
-    print(best_score)
+    print(f"score: {best_score}")
+    print('')
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
 
@@ -186,9 +189,11 @@ def get_retrain_model(params, model_factory, i):
 
 
 def append_scores(results, y_test, prediction):
+    def _f1_score(y_true, y_prediction):
+        return f1_score(y_true, y_prediction, average='macro')
     score_evals = [
         ('Accuracy', accuracy_score),
-        ('F1-score', f1_score),
+        ('F1-score', _f1_score),
         ('Sensitivity', sensitivity_score),
         ('Specificity', specificity_score),
         ('AUROC', roc_auc_score),
@@ -254,8 +259,8 @@ def print_model_metric(metric, model_results):
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
-        XGBoostFactory,
         RandomForestFactory,
+        XGBoostFactory,
         CatBoostFactory,
         LightGbmFactory,
     ]
