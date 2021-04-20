@@ -1,3 +1,4 @@
+import sys
 from pprint import pprint
 
 import pandas as pd
@@ -12,32 +13,6 @@ from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
 from sklearn.model_selection import KFold, GridSearchCV, train_test_split
 
 from ModelFactory import *
-
-features = [0,
-            2,
-            6,
-            7,
-            8,
-            10,
-            11,
-            12,
-            15,
-            13,
-            14,
-            16,
-            92,
-            17,
-            19,
-            18,
-            9,
-            39,
-            41,
-            42,
-            40,
-            43,
-            44,
-            48,
-            47]
 
 
 def split_to_data_and_target(df: pd.DataFrame):
@@ -63,7 +38,7 @@ def filter_nulls(df: pd.DataFrame):
     return df[df.apply(predicate, axis=1)]
 
 
-def project_columns(df: pd.DataFrame):
+def project_columns(df: pd.DataFrame, features):
     return df[df.columns[features]]
 
 
@@ -74,11 +49,89 @@ def impute(X):
 
 
 def preprocessing(df):
-    df = project_columns(df)
+    features = [0,
+                2,
+                6,
+                7,
+                8,
+                10,
+                11,
+                12,
+                15,
+                13,
+                14,
+                16,
+                92,
+                17,
+                19,
+                18,
+                9,
+                39,
+                41,
+                42,
+                40,
+                43,
+                44,
+                48,
+                47]
+    #  np.mean(np_arr), np.std(np_arr)
+    # wbc_index = df.columns.get_loc("Leukocytes")
+    # plt_index = df.columns.get_loc("Platelets")
+    df = project_columns(df, features)
     df = filter_nulls(df)
     convert_exam_results_to_binary(df)
+    featuresNames = [name for name in df.columns if not (name == 'Patient ID' or name == 'SARS-Cov-2 exam result')]
     X, y = split_to_data_and_target(df)
-    return impute(X), y
+    X = impute(X)
+    df = pd.DataFrame(data=X, columns=featuresNames)
+    wbc = df["Leukocytes"]
+    eos = df["Eosinophils"]
+    mono = df["Monocytes"]
+    lym = df["Lymphocytes"]
+    plt = df["Platelets"]
+    crp = df["Proteina C reativa mg/dL"]
+    rbc = df["Red blood Cells"]
+    hgb = df["Hemoglobin"]
+
+    # print(f"WBC min = {np.min(wbc)}, WBC max = {np.max(wbc)}")
+    # print(f"EOS min = {np.min(eos)}, EOS max = {np.max(eos)}")
+    # print(f"MONO min = {np.min(mono)}, MONO max = {np.max(mono)}")
+    # print(f"LYM min = {np.min(lym)}, LYM max = {np.max(lym)}")
+    # print(f"PLT min = {np.min(plt)}, PLT max = {np.max(plt)}")
+    # print(f"CRP min = {np.min(crp)}, CRP max = {np.max(crp)}")
+    # print(f"rbc min = {np.min(rbc)}, RBC max = {np.max(rbc)}")
+    # print(f"HGB min = {np.min(hgb)}, HGB max = {np.max(hgb)}")
+    logged_wbc = np.log([item + 100 for item in wbc])
+    wbc_mean = np.mean(logged_wbc)
+    wbc_std = np.std(logged_wbc)
+    logged_eos = np.log([item + 100 for item in eos])
+    eos_mean = np.mean(logged_eos)
+    eos_std = np.std(logged_eos)
+    logged_mono = np.log([item + 100 for item in mono])
+    mono_mean = np.mean(logged_mono)
+    mono_std = np.std(logged_mono)
+    logged_lym = np.log([item + 100 for item in lym])
+    lym_mean = np.mean(logged_lym)
+    lym_std = np.std(logged_lym)
+    logged_plt = np.log([item + 100 for item in plt])
+    plt_mean = np.mean(logged_plt)
+    plt_std = np.std(logged_plt)
+    logged_crp = np.log([item + 100 for item in crp])
+    crp_mean = np.mean(logged_crp)
+    crp_std = np.std(logged_crp)
+    logged_rbc = np.log([item + 100 for item in rbc])
+    rbc_mean = np.mean(logged_rbc)
+    rbc_std = np.std(logged_rbc)
+    logged_hgb = np.log([item + 100 for item in hgb])
+    hgb_mean = np.mean(logged_hgb)
+    hgb_std = np.std(logged_hgb)
+    # 1. normalized = [(wbc_row * plt_row) / (wbc_mean * plt_mean) for wbc_row, plt_row in zip(logged_wbc, logged_plt)]
+    # 2. normalized = [(plt_val + rbc_val) / (plt_mean * rbc_val) for plt_val, rbc_val in zip(logged_plt, logged_rbc)]
+    # 3. normalized = [(wbc_val * eos_val * mono_val * lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean)  for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    # 4. normalized = [(wbc_val + eos_val + mono_val + lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean) for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    normalized = [(plt_val - (rbc_val + wbc_val)) / (rbc_mean * plt_mean * wbc_mean) for crp_val, plt_val, wbc_val, rbc_val in zip(logged_crp, logged_plt, logged_wbc, logged_rbc)]
+    df['WBC*PLT / WBC.avg * PLT.avg'] = normalized
+    return df.values, y
 
 
 # template code taken from https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
@@ -191,6 +244,7 @@ def get_retrain_model(params, model_factory, i):
 def append_scores(results, y_test, prediction):
     def _f1_score(y_true, y_prediction):
         return f1_score(y_true, y_prediction, average='macro')
+
     score_evals = [
         ('Accuracy', accuracy_score),
         ('F1-score', _f1_score),
@@ -211,10 +265,10 @@ def normalize_metric_results(results):
 def print_all_results(results):
     models = [
         LogisticRegressionFactory,
-        RandomForestFactory,
-        XGBoostFactory,
-        CatBoostFactory,
-        LightGbmFactory,
+        # RandomForestFactory,
+        # XGBoostFactory,
+        # CatBoostFactory,
+        # LightGbmFactory,
     ]
     metrics = [
         'Accuracy',
@@ -259,10 +313,10 @@ def print_model_metric(metric, model_results):
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
-        RandomForestFactory,
-        XGBoostFactory,
-        CatBoostFactory,
-        LightGbmFactory,
+        # RandomForestFactory,
+        # XGBoostFactory,
+        # CatBoostFactory,
+        # LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
@@ -282,8 +336,11 @@ def main(filename):
     df = pd.read_csv(filename)
     X, y = preprocessing(df)
     print("finish preprocessing")
-    final_results = train_models(X, y)
-    print_all_results(final_results)
+    if len(sys.argv) == 1:
+        final_results = train_models(X, y)
+        print_all_results(final_results)
+    else:
+        print("Not running modeling")
 
 
 if __name__ == '__main__':
