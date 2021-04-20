@@ -1,10 +1,14 @@
+import time
+from datetime import datetime
 import sys
 from pprint import pprint
 
 import pandas as pd
 import numpy as np
+import shap
 from imblearn.metrics import sensitivity_score, specificity_score
 from imblearn.over_sampling import SVMSMOTE
+import matplotlib.pyplot as plt
 
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
@@ -13,6 +17,43 @@ from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
 from sklearn.model_selection import KFold, GridSearchCV, train_test_split
 
 from ModelFactory import *
+
+CV_INNER_N_ITERS = 5
+CV_OUTER_N_ITERS = 5
+
+features_short_names = [
+    "HCT", "HGB", "PLT", "RBC", "LYM",
+    "MCHC", "MCH", "WBC", "BAY", "EOS",
+    "LDH", "MCV", "RWD", "MONO", "MPV",
+    "NEU", "CRP", "CREAT", "Urea", "K+",
+    "Na", "AST", "ALT"
+]
+
+
+def print_time_delta(t_s, t_e, lbl):
+    if lbl != "":
+        lbl = lbl + " "
+    print(f'{lbl}time took: {seconds_to_string(t_e - t_s)}')
+
+
+def print_current_time(lbl):
+    if lbl != '':
+        lbl = lbl + ': '
+    print(f'{lbl}{datetime.now().strftime("%H:%M:%S")}')
+
+
+def seconds_to_string(dt_s):
+    if dt_s < 0:
+        return f'<<negative time: {dt_s:.2f}>>'
+    s = dt_s % 60
+    mins = int(dt_s // 60)
+    if mins == 0:
+        return f'{s:.2f}s'
+    hours = int(mins // 60)
+    if hours == 0:
+        return f'{mins}:{s:.2f} minutes'
+    return f'{hours}:{mins}:{s:.2f} hours'
+
 
 
 def split_to_data_and_target(df: pd.DataFrame):
@@ -46,6 +87,18 @@ def impute(X):
     imputer = IterativeImputer(max_iter=250)
     imputer.fit(X)
     return imputer.transform(X)
+
+
+# MAYBE def categorize_feature(df, feature_index, new_feature_name):
+#     vals = df.iloc[:, feature_index]
+#     mean = np.mean(vals)
+#     std = np.std(vals)
+#
+#     df.loc[df[df.columns[feature_index]] < mean - 0.5*std, [new_feature_name]] = 0 # low
+#     df.loc[df[df.columns[feature_index]] >= mean - 0.5*std, [new_feature_name]] = 1 # medium
+#     df.loc[df[df.columns[feature_index]] > mean + 0.5*std, [new_feature_name]] = 2 # high
+#     df[new_feature_name] = df[new_feature_name].astype('int32')
+#     return mean, std
 
 
 def preprocessing(df):
@@ -138,23 +191,30 @@ def preprocessing(df):
 def find_best_hyperparams(X, y, model_factory):
     pipeline_name_classifier = 'classifier'
     pipeline_classifier_params_prefix = f'{pipeline_name_classifier}__'
+    model_parms = model_factory.get_params_grid()
     params_grid = convert_params_dict_to_pipeline_params(
-        model_factory.get_params_grid(),
+        model_parms,
         pipeline_classifier_params_prefix
     )
-    print(f"running {model_factory.name()}:")
+    print(f"starting to run {model_factory.name()}, ", end='')
+    print_current_time('time')
     print('Params grid:')
-    pprint(params_grid)
+    pprint(model_parms)
 
-    outer_cv = KFold(n_splits=5)
+    time_outer_cv_start = time.perf_counter()
+
+    outer_cv = KFold(n_splits=CV_OUTER_N_ITERS)
     best_score = None
     best_params = None
-    i = 0
+    i = 1
     for train_xi, test_xi in outer_cv.split(X):
         X_train, X_test = X[train_xi, :], X[test_xi, :]
         y_train, y_test = y[train_xi], y[test_xi]
 
-        inner_cv = KFold(n_splits=5)
+        print(f"inner cross validation iteration {i}/{CV_INNER_N_ITERS} params of {model_factory.name()}:")
+        time_iter_start = time.perf_counter()
+
+        inner_cv = KFold(n_splits=CV_INNER_N_ITERS)
         model = Pipeline([
             ('over_sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
             (pipeline_name_classifier, model_factory.create_default_classifier())
@@ -174,9 +234,10 @@ def find_best_hyperparams(X, y, model_factory):
         y_predict = best_model.predict(X_test)
         score = f1_score(y_test, y_predict, average='macro')
 
-        print(f"inner cross validation iteration {i} params:")
+        time_iter_end = time.perf_counter()
         pprint(result.best_params_)
         print(f"score: {score}")
+        print_time_delta(time_iter_start, time_iter_end, 'iteration')
 
         if best_score is None or score > best_score:
             best_score = score
@@ -184,9 +245,11 @@ def find_best_hyperparams(X, y, model_factory):
 
         i += 1
 
+    time_outer_cv_end = time.perf_counter()
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
+    print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model {model_factory.name()}')
     print('')
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
@@ -262,13 +325,13 @@ def normalize_metric_results(results):
         results[metric] = np.mean(np_arr), np.std(np_arr)
 
 
-def print_all_results(results):
+def print_all_results(results, lbl, newline_after_label):
     models = [
         LogisticRegressionFactory,
-        # RandomForestFactory,
-        # XGBoostFactory,
-        # CatBoostFactory,
-        # LightGbmFactory,
+        RandomForestFactory,
+        XGBoostFactory,
+        CatBoostFactory,
+        LightGbmFactory,
     ]
     metrics = [
         'Accuracy',
@@ -278,7 +341,9 @@ def print_all_results(results):
         'AUROC'
     ]
 
-    print('\nFinal results:\n')
+    print(f'{lbl} results:')
+    if newline_after_label:
+        print('')
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
     print_metric_headers(metrics)
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
@@ -313,16 +378,18 @@ def print_model_metric(metric, model_results):
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
-        # RandomForestFactory,
-        # XGBoostFactory,
-        # CatBoostFactory,
-        # LightGbmFactory,
+        RandomForestFactory,
+        XGBoostFactory,
+        CatBoostFactory,
+        LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
         model_factory = model_factory_class()
         results = train_model(X, y, model_factory)
         final_results[model_factory.name()] = results
+        print_all_results(final_results, 'Intermediate', newline_after_label=False)
+        print('')
     return final_results
 
 
@@ -332,16 +399,50 @@ def train_model(X, y, model_factory):
     return results
 
 
-def main(filename):
+def start(filename):
     df = pd.read_csv(filename)
+    time_preprocessing_start = time.perf_counter()
     X, y = preprocessing(df)
-    print("finish preprocessing")
-    if len(sys.argv) == 1:
-        final_results = train_models(X, y)
-        print_all_results(final_results)
-    else:
-        print("Not running modeling")
+    time_preprocessing_end = time.perf_counter()
+    print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
+    final_results = train_models(X, y)
+    time_end = time.perf_counter()
+    print('')
+    print_all_results(final_results, 'Final', newline_after_label=True)
+    return final_results, time_end
+
+
+def main(filename):
+    time_start = time.perf_counter()
+    print_current_time('start time')
+    final_results, time_end = start(filename)
+    print_time_delta(time_start, time_end, 'total')
+    print_current_time('end time')
 
 
 if __name__ == '__main__':
     main("./dataset.csv")
+    # df = pd.read_csv("./dataset.csv")
+    # time_preprocessing_start = time.perf_counter()
+    # X, y = preprocessing(df)
+    # time_preprocessing_end = time.perf_counter()
+    # print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
+    # # X, y = shap.datasets.adult()
+    # # X = X[:600]
+    # # y = y[:600]
+    # model = RandomForestFactory().create_default_classifier()
+    # model.set_params(n_estimators=4, max_depth=64)
+    #
+    # # compute SHAP values
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    # explainer = shap.Explainer(
+    #     model.fit(X_train, y_train), X_train,
+    #     feature_names=features_short_names,
+    # )
+    # shap_values = explainer(X_test)
+    # shap.plots.beeswarm(
+    #     shap_values,
+    #     plot_size=(15, 15), max_display=28,
+    #     show=False
+    # )
+    # plt.savefig('shap-lgbm.png')

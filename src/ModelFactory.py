@@ -21,7 +21,7 @@ class ModelFactory:
 
 class LogisticRegressionFactory(ModelFactory):
     def name(self):
-        return "LR"
+        return 'LR'
 
     def get_params_grid(self):
         return {}
@@ -32,12 +32,12 @@ class LogisticRegressionFactory(ModelFactory):
 
 class RandomForestFactory(ModelFactory):
     def name(self):
-        return "RF"
+        return 'RF'
 
     def get_params_grid(self):
         return {
             'n_estimators': list(range(10, 40, 10)) + list(range(45, 105, 5)),
-            'max_depth': [2 ** i for i in range(1, 7)]
+            'max_depth': [2 ** i for i in range(1, 7)],
         }
 
     def create_default_classifier(self):
@@ -46,38 +46,44 @@ class RandomForestFactory(ModelFactory):
 
 class XGBoostFactory(ModelFactory):
     def name(self):
-        return "XGBoost"
+        return 'XGBoost'
 
     def get_params_grid(self):
         return {
-            "learning_rate": [0.01, 0.05, 0.1]
+            'n_estimators': list(range(10, 40, 10)) + list(range(45, 105, 5)),
+            'max_depth': [2 ** i for i in range(1, 7)],
+            'learning_rate': [0.01, 0.05, 0.1]
         }
 
     def create_default_classifier(self):
-        return XGBClassifier(use_label_encoder=False, verbosity=0)
+        return XGBClassifier(use_label_encoder=False, eval_metric='logloss')
 
 
 class CatBoostFactory(ModelFactory):
     def name(self):
-        return "CatBoost"
+        return 'CatBoost'
 
     def get_params_grid(self):
         return {
-            "learning_rate": [0.01, 0.05, 0.1]
+            'n_estimators': [25, 50, 75, 100],
+            'max_depth': [2, 4, 16],
+            'learning_rate': [0.01, 0.05, 0.1]
         }
 
     def create_default_classifier(self):
-        return CatBoostClassifier(verbose=False)
+        return CatBoostClassifier(verbose=False, allow_writing_files=False)
 
 
 class LightGbmFactory(ModelFactory):
     def name(self):
-        return "LightGBM"
+        return 'LightGBM'
 
     def get_params_grid(self):
         return {
-            "learning_rate": [0.01, 0.05, 0.1]
+            'n_estimators': list(range(10, 40, 10)) + list(range(45, 105, 5)),
+            'max_depth': [2 ** i for i in range(1, 7)],
+            'learning_rate': [0.01, 0.05, 0.1]
         }
 
     def create_default_classifier(self):
-        return LGBMClassifier()
+        return LGBMClassifier(objective='binary')
