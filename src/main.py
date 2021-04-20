@@ -1,4 +1,4 @@
-import timeit
+import time
 from datetime import datetime
 from pprint import pprint
 
@@ -122,7 +122,7 @@ def find_best_hyperparams(X, y, model_factory):
     print('Params grid:')
     pprint(model_parms)
 
-    time_outer_cv_start = timeit.timeit()
+    time_outer_cv_start = time.perf_counter()
 
     outer_cv = KFold(n_splits=CV_OUTER_N_ITERS)
     best_score = None
@@ -133,7 +133,7 @@ def find_best_hyperparams(X, y, model_factory):
         y_train, y_test = y[train_xi], y[test_xi]
 
         print(f"inner cross validation iteration {i}/{CV_INNER_N_ITERS} params of {model_factory.name()}:")
-        time_iter_start = timeit.timeit()
+        time_iter_start = time.perf_counter()
 
         inner_cv = KFold(n_splits=CV_INNER_N_ITERS)
         model = Pipeline([
@@ -155,7 +155,7 @@ def find_best_hyperparams(X, y, model_factory):
         y_predict = best_model.predict(X_test)
         score = f1_score(y_test, y_predict, average='macro')
 
-        time_iter_end = timeit.timeit()
+        time_iter_end = time.perf_counter()
         pprint(result.best_params_)
         print(f"score: {score}")
         print_time_delta(time_iter_start, time_iter_end, 'iteration')
@@ -166,7 +166,7 @@ def find_best_hyperparams(X, y, model_factory):
 
         i += 1
 
-    time_outer_cv_end = timeit.timeit()
+    time_outer_cv_end = time.perf_counter()
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
@@ -326,13 +326,13 @@ def train_all(df):
 def start(filename):
     df = pd.read_csv(filename)
     final_results = train_all(df)
-    time_end = timeit.timeit()
+    time_end = time.perf_counter()
     print_all_results(final_results, 'Final')
     return final_results, time_end
 
 
 def main(filename):
-    time_start = timeit.timeit()
+    time_start = time.perf_counter()
     print_current_time('start time')
     final_results, time_end = start(filename)
     print_time_delta(time_start, time_end, 'total')
