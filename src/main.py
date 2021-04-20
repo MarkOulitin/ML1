@@ -245,7 +245,7 @@ def normalize_metric_results(results):
         results[metric] = np.mean(np_arr), np.std(np_arr)
 
 
-def print_all_results(results):
+def print_all_results(results, lbl):
     models = [
         LogisticRegressionFactory,
         RandomForestFactory,
@@ -261,7 +261,7 @@ def print_all_results(results):
         'AUROC'
     ]
 
-    print('\nFinal results:\n')
+    print(f'\n{lbl} results:\n')
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
     print_metric_headers(metrics)
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
@@ -306,6 +306,7 @@ def train_models(X, y):
         model_factory = model_factory_class()
         results = train_model(X, y, model_factory)
         final_results[model_factory.name()] = results
+        print_all_results(results, 'Intermediate')
     return final_results
 
 
@@ -317,9 +318,8 @@ def train_model(X, y, model_factory):
 
 def train_all(df):
     X, y = preprocessing(df)
-    # print("finish preprocessing")
-    # final_results = train_models(X, y)
-    final_results = {}
+    print("finish preprocessing")
+    final_results = train_models(X, y)
     return final_results
 
 
@@ -327,7 +327,7 @@ def start(filename):
     df = pd.read_csv(filename)
     final_results = train_all(df)
     time_end = timeit.timeit()
-    print_all_results(final_results)
+    print_all_results(final_results, 'Final')
     return final_results, time_end
 
 
