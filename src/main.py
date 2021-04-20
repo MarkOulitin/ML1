@@ -68,6 +68,7 @@ def print_current_time(lbl):
         lbl = lbl + ': '
     print(f'{lbl}{datetime.now().strftime("%H:%M:%S")}')
 
+
 def split_to_data_and_target(df: pd.DataFrame):
     data = df.values
     X, y = data[:, 2:], data[:, 1]
@@ -106,7 +107,8 @@ def preprocessing(df):
     df = filter_nulls(df)
     convert_exam_results_to_binary(df)
     X, y = split_to_data_and_target(df)
-    return impute(X), y
+    X = impute(X)
+    return X, y
 
 
 # template code taken from https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
@@ -245,7 +247,7 @@ def normalize_metric_results(results):
         results[metric] = np.mean(np_arr), np.std(np_arr)
 
 
-def print_all_results(results, lbl):
+def print_all_results(results, lbl, newline_after_label):
     models = [
         LogisticRegressionFactory,
         RandomForestFactory,
@@ -261,7 +263,9 @@ def print_all_results(results, lbl):
         'AUROC'
     ]
 
-    print(f'\n{lbl} results:\n')
+    print(f'{lbl} results:')
+    if newline_after_label:
+        print('')
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
     print_metric_headers(metrics)
     print('+-------------+-----------+-----------+-------------+-------------+-----------+')
@@ -306,7 +310,8 @@ def train_models(X, y):
         model_factory = model_factory_class()
         results = train_model(X, y, model_factory)
         final_results[model_factory.name()] = results
-        print_all_results(results, 'Intermediate')
+        print_all_results(final_results, 'Intermediate', newline_after_label=False)
+        print('')
     return final_results
 
 
@@ -316,18 +321,16 @@ def train_model(X, y, model_factory):
     return results
 
 
-def train_all(df):
-    X, y = preprocessing(df)
-    print("finish preprocessing")
-    final_results = train_models(X, y)
-    return final_results
-
-
 def start(filename):
     df = pd.read_csv(filename)
-    final_results = train_all(df)
+    time_preprocessing_start = time.perf_counter()
+    X, y = preprocessing(df)
+    time_preprocessing_end = time.perf_counter()
+    print_time_delta(time_preprocessing_end, time_preprocessing_start, 'preprocessing')
+    final_results = train_models(X, y)
     time_end = time.perf_counter()
-    print_all_results(final_results, 'Final')
+    print('')
+    print_all_results(final_results, 'Final', newline_after_label=True)
     return final_results, time_end
 
 
