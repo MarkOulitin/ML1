@@ -63,6 +63,11 @@ def print_time_delta(t_s, t_e, lbl):
     print(f'{lbl}time took: {seconds_to_string(t_e - t_s)}')
 
 
+def print_current_time(lbl):
+    if lbl != '':
+        lbl = lbl + ': '
+    print(f'{lbl}{datetime.now().strftime("%H:%M:%S")}')
+
 def split_to_data_and_target(df: pd.DataFrame):
     data = df.values
     X, y = data[:, 2:], data[:, 1]
@@ -312,8 +317,9 @@ def train_model(X, y, model_factory):
 
 def train_all(df):
     X, y = preprocessing(df)
-    print("finish preprocessing")
-    final_results = train_models(X, y)
+    # print("finish preprocessing")
+    # final_results = train_models(X, y)
+    final_results = {}
     return final_results
 
 
@@ -327,10 +333,10 @@ def start(filename):
 
 def main(filename):
     time_start = timeit.timeit()
-    print(f'start time: {datetime.now().strftime("%H:%M:%S")}')
+    print_current_time('start time')
     final_results, time_end = start(filename)
     print_time_delta(time_start, time_end, 'total')
-    print(f'end time: {datetime.now().strftime("%H:%M:%S")}')
+    print_current_time('end time')
 
 
 if __name__ == '__main__':
