@@ -57,6 +57,12 @@ def seconds_to_string(dt_s):
     return f'{hours}:{mins}:{s:.2f} hours'
 
 
+def print_time_delta(t_s, t_e, lbl):
+    if lbl != "":
+        lbl = lbl + " "
+    print(f'{lbl}time took: {seconds_to_string(t_e - t_s)}')
+
+
 def split_to_data_and_target(df: pd.DataFrame):
     data = df.values
     X, y = data[:, 2:], data[:, 1]
@@ -147,7 +153,7 @@ def find_best_hyperparams(X, y, model_factory):
         time_iter_end = timeit.timeit()
         pprint(result.best_params_)
         print(f"score: {score}")
-        print(f'iteration time took: {seconds_to_string(time_iter_end - time_iter_start)}')
+        print_time_delta(time_iter_start, time_iter_end, 'iteration')
 
         if best_score is None or score > best_score:
             best_score = score
@@ -156,10 +162,10 @@ def find_best_hyperparams(X, y, model_factory):
         i += 1
 
     time_outer_cv_end = timeit.timeit()
-    print(f'model time took: {seconds_to_string(time_outer_cv_end - time_outer_cv_start)}')
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
+    print_time_delta(time_outer_cv_start, time_outer_cv_end, 'model')
     print('')
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
@@ -323,7 +329,7 @@ def main(filename):
     time_start = timeit.timeit()
     print(f'start time: {datetime.now().strftime("%H:%M:%S")}')
     final_results, time_end = start(filename)
-    print(f'total time took: {seconds_to_string(time_end - time_start)}')
+    print_time_delta(time_start, time_end, 'total')
     print(f'end time: {datetime.now().strftime("%H:%M:%S")}')
 
 
