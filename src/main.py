@@ -363,6 +363,10 @@ def find_best_hyperparams(X, y, model_factory):
     print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model parameter tuning {model_factory.name()}')
     print('')
 
+    try_write_to_results_file(f'{model_factory.name()} best params:\n')
+    try_write_to_results_file(f'{best_params}\n\n')
+    rof.flush()
+
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
 
 
@@ -439,7 +443,7 @@ def normalize_metric_results(results):
         results[metric] = np.mean(np_arr), np.std(np_arr)
 
 
-def print_all_results(results, lbl, newline_after_label):
+def print_all_results(results, lbl, newline_after_label, f_print=print):
     models = [
         LogisticRegressionFactory,
         RandomForestFactory,
@@ -455,38 +459,38 @@ def print_all_results(results, lbl, newline_after_label):
         'AUROC'
     ]
 
-    print(f'{lbl} results:')
+    f_print(f'{lbl} results:')
     if newline_after_label:
-        print('')
-    print('+-------------+-----------+-----------+-------------+-------------+-----------+')
-    print_metric_headers(metrics)
-    print('+-------------+-----------+-----------+-------------+-------------+-----------+')
+        f_print('')
+    f_print('+-------------+-----------+-----------+-------------+-------------+-----------+')
+    print_metric_headers(metrics, f_print)
+    f_print('+-------------+-----------+-----------+-------------+-------------+-----------+')
     for model_factory_class in models:
         model = model_factory_class()
         if model.name() in results:
-            print_model_results(metrics, model, results)
-    print('+-------------+-----------+-----------+-------------+-------------+-----------+')
+            print_model_results(metrics, model, results, f_print)
+    f_print('+-------------+-----------+-----------+-------------+-------------+-----------+')
 
 
-def print_metric_headers(metrics):
-    print('| Model\\Score |', end='')
+def print_metric_headers(metrics, f_print):
+    f_print('| Model\\Score |', end='')
     for metric in metrics:
-        print(f' {metric: <9} |', end='')
-    print('')
+        f_print(f' {metric: <9} |', end='')
+    f_print('')
 
 
-def print_model_results(metrics, model, results):
+def print_model_results(metrics, model, results, f_print):
     model_results = results[model.name()]
-    print(f'| {model.name(): <11} |', end='')
+    f_print(f'| {model.name(): <11} |', end='')
     for metric in metrics:
-        print_model_metric(metric, model_results)
-    print('')
+        print_model_metric(metric, model_results, f_print)
+    f_print('')
 
 
-def print_model_metric(metric, model_results):
+def print_model_metric(metric, model_results, f_print):
     value = model_results[metric]
     value_str = f'{value[0]:.2f}±{value[1]:.2f}'
-    print(f' {value_str.ljust(max(9, len(metric)))} |', end='')
+    f_print(f' {value_str.ljust(max(9, len(metric)))} |', end='')
 
 
 def shap_plot(model_factory, params, X, y):
@@ -528,6 +532,9 @@ def train_models(X, y):
         results = train_model(X, y, model_factory)
         final_results[model_factory.name()] = results
         print_all_results(final_results, 'Intermediate', newline_after_label=False)
+        if results_output_to_file:
+            print_all_results(final_results, 'Intermediate', newline_after_label=True, f_print=try_write_to_results_file)
+            rof.flush()
         print('')
     return final_results
 
@@ -560,5 +567,24 @@ def main(filename):
     print_current_time('end time')
 
 
+def try_write_to_results_file(s):
+    if not results_output_to_file:
+        return
+    try:
+        rof.write(s)
+    except Exception as e:
+        print('Error writing results to file')
+
+
+results_output_to_file = False
+rof_name = 'results.txt'
+rof = None
+
 if __name__ == '__main__':
-    main("./dataset.csv")
+    results_output_to_file = sys.argv[1] == '-rof'
+    if results_output_to_file:
+        rof = open(rof_name, 'a')
+    try:
+        main("./dataset.csv")
+    finally:
+        rof.close()
