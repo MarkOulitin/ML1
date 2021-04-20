@@ -4,8 +4,10 @@ from pprint import pprint
 
 import pandas as pd
 import numpy as np
+import shap
 from imblearn.metrics import sensitivity_score, specificity_score
 from imblearn.over_sampling import SVMSMOTE
+import matplotlib.pyplot as plt
 
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
@@ -42,6 +44,14 @@ features = [0,
             44,
             48,
             47]
+
+features_short_names = [
+    "HCT", "HGB", "PLT", "RBC", "LYM",
+    "MCHC", "MCH", "WBC", "BAY", "EOS",
+    "LDH", "MCV", "RWD", "MONO", "MPV",
+    "NEU", "CRP", "CREAT", "Urea", "K+",
+    "Na", "AST", "ALT"
+]
 
 
 def seconds_to_string(dt_s):
@@ -357,3 +367,27 @@ def main(filename):
 
 if __name__ == '__main__':
     main("./dataset.csv")
+    # df = pd.read_csv("./dataset.csv")
+    # time_preprocessing_start = time.perf_counter()
+    # X, y = preprocessing(df)
+    # time_preprocessing_end = time.perf_counter()
+    # print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
+    # # X, y = shap.datasets.adult()
+    # # X = X[:600]
+    # # y = y[:600]
+    # model = RandomForestFactory().create_default_classifier()
+    # model.set_params(n_estimators=4, max_depth=64)
+    #
+    # # compute SHAP values
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    # explainer = shap.Explainer(
+    #     model.fit(X_train, y_train), X_train,
+    #     feature_names=features_short_names,
+    # )
+    # shap_values = explainer(X_test)
+    # shap.plots.beeswarm(
+    #     shap_values,
+    #     plot_size=(15, 15), max_display=28,
+    #     show=False
+    # )
+    # plt.savefig('shap-lgbm.png')
