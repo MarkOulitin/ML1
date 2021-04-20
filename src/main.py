@@ -102,6 +102,18 @@ def impute(X):
     return imputer.transform(X)
 
 
+def categorize_feature(df, feature_index, new_feature_name):
+    vals = df.iloc[:, feature_index]
+    mean = np.mean(vals)
+    std = np.std(vals)
+
+    df.loc[df[df.columns[feature_index]] < mean - 0.5*std, [new_feature_name]] = 0 # low
+    df.loc[df[df.columns[feature_index]] >= mean - 0.5*std, [new_feature_name]] = 1 # medium
+    df.loc[df[df.columns[feature_index]] > mean + 0.5*std, [new_feature_name]] = 2 # high
+    df[new_feature_name] = df[new_feature_name].astype('int32')
+    return mean, std
+
+
 def preprocessing(df):
     df = project_columns(df)
     df = filter_nulls(df)
@@ -120,7 +132,8 @@ def find_best_hyperparams(X, y, model_factory):
         model_parms,
         pipeline_classifier_params_prefix
     )
-    print(f"running {model_factory.name()}:")
+    print(f"starting to run {model_factory.name()}, ", end='')
+    print_current_time('time')
     print('Params grid:')
     pprint(model_parms)
 
@@ -172,7 +185,7 @@ def find_best_hyperparams(X, y, model_factory):
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
-    print_time_delta(time_outer_cv_start, time_outer_cv_end, 'model')
+    print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model {model_factory.name()}')
     print('')
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
@@ -326,7 +339,7 @@ def start(filename):
     time_preprocessing_start = time.perf_counter()
     X, y = preprocessing(df)
     time_preprocessing_end = time.perf_counter()
-    print_time_delta(time_preprocessing_end, time_preprocessing_start, 'preprocessing')
+    print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
     final_results = train_models(X, y)
     time_end = time.perf_counter()
     print('')
