@@ -83,18 +83,6 @@ def project_columns(df: pd.DataFrame, features):
     return df[df.columns[features]]
 
 
-# MAYBE def categorize_feature(df, feature_index, new_feature_name):
-#     vals = df.iloc[:, feature_index]
-#     mean = np.mean(vals)
-#     std = np.std(vals)
-#
-#     df.loc[df[df.columns[feature_index]] < mean - 0.5*std, [new_feature_name]] = 0 # low
-#     df.loc[df[df.columns[feature_index]] >= mean - 0.5*std, [new_feature_name]] = 1 # medium
-#     df.loc[df[df.columns[feature_index]] > mean + 0.5*std, [new_feature_name]] = 2 # high
-#     df[new_feature_name] = df[new_feature_name].astype('int32')
-#     return mean, std
-
-
 def impute(X_train, X_test, max_iter=1000):
     imputer = IterativeImputer(max_iter=max_iter)
     imputer.fit(X_train)
@@ -528,11 +516,11 @@ def shap_plot(model_factory, params, X, y):
 
 def train_models(X, y):
     models = [
-        LogisticRegressionFactory,
-        # RandomForestFactory,
-        # XGBoostFactory,
+        # LogisticRegressionFactory,
+        RandomForestFactory,
+        XGBoostFactory,
         # CatBoostFactory,
-        # LightGbmFactory,
+        LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
@@ -574,30 +562,3 @@ def main(filename):
 
 if __name__ == '__main__':
     main("./dataset.csv")
-    # df = pd.read_csv("./dataset.csv")
-    # X, y = preprocessing(df)
-    # factory = LightGbmFactory()
-    #
-    # # compute SHAP values
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    # X_train, X_test = impute(X_train, X_test)
-    # model = factory.create_classifier()
-    # model.set_params(n_estimators=4, max_depth=64, learning_rate=0.1)
-    # model.fit(X_train, y_train)
-    # shap_values = factory.shap_values(model, X_train, X_test)
-    #
-    # # explainer = shap.Explainer(
-    # #     model.fit(X_train, y_train), X_train
-    # # )
-    # # shap_values = explainer(X_test)
-    # # # explainer = shap.TreeExplainer(model.fit(X_train, y_train), X_train)
-    # # # shap_values = explainer.shap_values(X_test)
-    # shap.summary_plot(
-    #     shap_values,
-    #     X_test,
-    #     max_display=28,
-    #     feature_names=features_short_names,
-    #     plot_size=(15, 15),
-    #     show=False,
-    # )
-    # plt.savefig('shap-lgbm.png')
