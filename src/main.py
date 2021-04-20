@@ -95,7 +95,7 @@ def project_columns(df: pd.DataFrame, features):
 #     return mean, std
 
 
-def impute(X_train, X_test, max_iter=500):
+def impute(X_train, X_test, max_iter=1000):
     imputer = IterativeImputer(max_iter=max_iter)
     imputer.fit(X_train)
     X_train = imputer.transform(X_train)
@@ -454,10 +454,10 @@ def normalize_metric_results(results):
 def print_all_results(results, lbl, newline_after_label):
     models = [
         LogisticRegressionFactory,
-        # RandomForestFactory,
-        # XGBoostFactory,
-        # CatBoostFactory,
-        # LightGbmFactory,
+        RandomForestFactory,
+        XGBoostFactory,
+        CatBoostFactory,
+        LightGbmFactory,
     ]
     metrics = [
         'Accuracy',
@@ -501,7 +501,7 @@ def print_model_metric(metric, model_results):
     print(f' {value_str.ljust(max(9, len(metric)))} |', end='')
 
 
-def shap_plot(model_factory, params):
+def shap_plot(model_factory, params, X, y):
     if not model_factory.should_plot_shap():
         print(f'model {model_factory.name()} not supporting SHAP')
         return
@@ -510,15 +510,14 @@ def shap_plot(model_factory, params):
     try:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         X_train, X_test = impute(X_train, X_test)
-        model = model_factory.create_classifier()
-        model.set_params(**params)
-        model = model.fit(X_train, y_train)
-        shap_values = model_factory.shap_values(model, X_train, X_test)
-        shap.summary_plot(
+        model = get_retrain_model(params, model_factory, 0)
+        model.fit(X_train, y_train)
+        explainer = shap.Explainer(model.predict, X_train, feature_names=features_short_names)
+        shap_values = explainer(X_test)
+        shap.plots.beeswarm(
             shap_values,
-            X_test,
             max_display=28,
-            feature_names=features_short_names,
+            plot_size=(15, 15),
             show=False,
         )
         plt.savefig(f'shap-{model_factory.name()}.png')
@@ -548,7 +547,7 @@ def train_models(X, y):
 def train_model(X, y, model_factory):
     params = find_best_hyperparams(X, y, model_factory)
     results = calculate_test_metrics(X, y, params, model_factory)
-    shap_plot(model_factory, params)
+    shap_plot(model_factory, params, X, y)
     return results
 
 
