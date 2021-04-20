@@ -390,15 +390,14 @@ def shap_plot(model_factory, params, X, y):
     try:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         X_train, X_test = impute(X_train, X_test)
-        model = model_factory.create_classifier()
-        model.set_params(**params)
-        model = model.fit(X_train, y_train)
-        shap_values = model_factory.shap_values(model, X_train, X_test)
-        shap.summary_plot(
+        model = get_retrain_model(params, model_factory, 0)
+        model.fit(X_train, y_train)
+        explainer = shap.Explainer(model.predict, X_train, feature_names=features_short_names)
+        shap_values = explainer(X_test)
+        shap.plots.beeswarm(
             shap_values,
-            X_test,
             max_display=28,
-            feature_names=features_short_names,
+            plot_size=(15, 15),
             show=False,
         )
         plt.savefig(f'shap-{model_factory.name()}.png')
@@ -409,11 +408,11 @@ def shap_plot(model_factory, params, X, y):
 
 def train_models(X, y):
     models = [
-        # LogisticRegressionFactory,
+        LogisticRegressionFactory,
         RandomForestFactory,
-        # XGBoostFactory,
+        XGBoostFactory,
         # CatBoostFactory,
-        # LightGbmFactory,
+        LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:

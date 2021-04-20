@@ -19,11 +19,6 @@ class ModelFactory:
     def should_plot_shap(self):
         return True
 
-    def shap_values(self, model, X_train, X_test):
-        explainer = shap.Explainer(model, X_train)
-        shap_values = explainer(X_test)
-        return shap_values
-
     def __str__(self):
         return self.name()
 
@@ -41,9 +36,6 @@ class LogisticRegressionFactory(ModelFactory):
     def should_plot_shap(self):
         return False
 
-    def shap_values(self, X_train, y_train, X_test):
-        raise NotImplementedError()
-
 
 class RandomForestFactory(ModelFactory):
     def name(self):
@@ -57,11 +49,6 @@ class RandomForestFactory(ModelFactory):
 
     def create_classifier(self, **kwargs):
         return RandomForestClassifier(**kwargs)
-
-    def shap_values(self, model, X_train, X_test):
-        explainer = shap.TreeExplainer(model, X_train)
-        shap_values = explainer.shap_values(X_test, check_additivity=False)
-        return shap_values
 
 
 class XGBoostFactory(ModelFactory):
