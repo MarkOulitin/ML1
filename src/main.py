@@ -83,12 +83,6 @@ def project_columns(df: pd.DataFrame, features):
     return df[df.columns[features]]
 
 
-def impute(X):
-    imputer = IterativeImputer(max_iter=250)
-    imputer.fit(X)
-    return imputer.transform(X)
-
-
 # MAYBE def categorize_feature(df, feature_index, new_feature_name):
 #     vals = df.iloc[:, feature_index]
 #     mean = np.mean(vals)
@@ -99,6 +93,14 @@ def impute(X):
 #     df.loc[df[df.columns[feature_index]] > mean + 0.5*std, [new_feature_name]] = 2 # high
 #     df[new_feature_name] = df[new_feature_name].astype('int32')
 #     return mean, std
+
+
+def impute(X_train, X_test, max_iter=500):
+    imputer = IterativeImputer(max_iter=max_iter)
+    imputer.fit(X_train)
+    X_train = imputer.transform(X_train)
+    X_test = imputer.transform(X_test)
+    return X_train, X_test
 
 
 def preprocessing(df):
@@ -214,11 +216,7 @@ def find_best_hyperparams(X, y, model_factory):
         print(f"inner cross validation iteration {i}/{CV_INNER_N_ITERS} params of {model_factory.name()}:")
         time_iter_start = time.perf_counter()
 
-        imputer = IterativeImputer(max_iter=250)
-        imputer.fit(X_train)
-        X_train = imputer.transform(X_train)
-        X_test = imputer.transform(X_test)
-
+        X_train, X_test = impute(X_train, X_test)
         inner_cv = KFold(n_splits=CV_INNER_N_ITERS)
         model = Pipeline([
             ('over_sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
@@ -294,11 +292,7 @@ def retrain(X, y, params, model_factory, results):
 def retrain_iter(X, y, params, model_factory, results, i):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-    imputer = IterativeImputer(max_iter=250)
-    imputer.fit(X_train)
-    X_train = imputer.transform(X_train)
-    X_test = imputer.transform(X_test)
-
+    X_train, X_test = impute(X_train, X_test)
     model = get_retrain_model(params, model_factory, i)
     model.fit(X_train, y_train)
     prediction = model.predict(X_test)
@@ -386,6 +380,26 @@ def print_model_metric(metric, model_results):
     print(f' {value_str.ljust(max(9, len(metric)))} |', end='')
 
 
+def shap_plot(model_factory, params):
+    if not model_factory.should_plot_shap():
+        return
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    X_train, X_test = impute(X_train, X_test)
+    model = model_factory.create_classifier()
+    model.set_params(**params)
+    model = model.fit(X_train, y_train)
+    shap_values = model_factory.shap_values(model, X_train, X_test)
+    shap.summary_plot(
+        shap_values,
+        X_test,
+        max_display=28,
+        feature_names=features_short_names,
+        show=False,
+    )
+    plt.savefig(f'shap-{model_factory.name()}.png')
+
+
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
@@ -407,6 +421,7 @@ def train_models(X, y):
 def train_model(X, y, model_factory):
     params = find_best_hyperparams(X, y, model_factory)
     results = calculate_test_metrics(X, y, params, model_factory)
+    shap_plot(model_factory, params)
     return results
 
 
@@ -434,32 +449,29 @@ def main(filename):
 if __name__ == '__main__':
     # main("./dataset.csv")
     df = pd.read_csv("./dataset.csv")
-    time_preprocessing_start = time.perf_counter()
     X, y = preprocessing(df)
-    time_preprocessing_end = time.perf_counter()
-    print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
-    # X, y = shap.datasets.adult()
-    # X = X[:600]
-    # y = y[:600]
-    # model = RandomForestFactory().create_default_classifier()
-    # model.set_params(n_estimators=4, max_depth=64)
-    model = LightGbmFactory().create_classifier()
-    model.set_params(learning_rate=0.1)
+    factory = LightGbmFactory()
 
     # compute SHAP values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    explainer = shap.Explainer(
-        model.fit(X_train, y_train), X_train,
-        feature_names=features_short_names,
-    )
-    shap_values = explainer(X_test)
-    # explainer = shap.TreeExplainer(model.fit(X_train, y_train), X_train)
-    # shap_values = explainer.shap_values(X_test)
+    X_train, X_test = impute(X_train, X_test)
+    model = factory.create_classifier()
+    model.set_params(n_estimators=4, max_depth=64, learning_rate=0.1)
+    model.fit(X_train, y_train)
+    shap_values = factory.shap_values(model, X_train, X_test)
+
+    # explainer = shap.Explainer(
+    #     model.fit(X_train, y_train), X_train
+    # )
+    # shap_values = explainer(X_test)
+    # # explainer = shap.TreeExplainer(model.fit(X_train, y_train), X_train)
+    # # shap_values = explainer.shap_values(X_test)
     shap.summary_plot(
         shap_values,
         X_test,
         max_display=28,
         feature_names=features_short_names,
+        plot_size=(15, 15),
         show=False,
     )
     plt.savefig('shap-lgbm.png')
