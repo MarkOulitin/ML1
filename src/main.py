@@ -101,7 +101,7 @@ def impute(X_train, X_test, max_iter=500):
     X_train = imputer.transform(X_train)
     X_test = imputer.transform(X_test)
     X_train, performance = addFeatures(X_train)
-    X_test, _ = addFeaturesTest(X_test, performance)
+    X_test = addFeaturesTest(X_test, performance)
     return X_train, X_test
 
 
@@ -254,6 +254,7 @@ def preprocessing(df):
     df = project_columns(df, features)
     df = filter_nulls(df)
     convert_exam_results_to_binary(df)
+    global featuresNames
     featuresNames = [name for name in df.columns if not (name == 'Patient ID' or name == 'SARS-Cov-2 exam result')]
     X, y = split_to_data_and_target(df)
     return X, y
@@ -529,10 +530,10 @@ def shap_plot(model_factory, params):
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
-        RandomForestFactory,
-        XGBoostFactory,
+        # RandomForestFactory,
+        # XGBoostFactory,
         # CatBoostFactory,
-        LightGbmFactory,
+        # LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
