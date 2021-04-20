@@ -371,7 +371,7 @@ def find_best_hyperparams(X, y, model_factory):
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
-    print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model {model_factory.name()}')
+    print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model parameter tuning {model_factory.name()}')
     print('')
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
@@ -405,6 +405,7 @@ def calculate_test_metrics(X, y, params, model_factory):
 
 def retrain(X, y, params, model_factory, results):
     for i in range(1, 11):
+        print(f'retraining iteration {i}/{10} of {model_factory.name()} model')
         retrain_iter(X, y, params, model_factory, results, i)
 
 
@@ -501,31 +502,37 @@ def print_model_metric(metric, model_results):
 
 def shap_plot(model_factory, params):
     if not model_factory.should_plot_shap():
+        print(f'model {model_factory.name()} not supporting SHAP')
         return
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    X_train, X_test = impute(X_train, X_test)
-    model = model_factory.create_classifier()
-    model.set_params(**params)
-    model = model.fit(X_train, y_train)
-    shap_values = model_factory.shap_values(model, X_train, X_test)
-    shap.summary_plot(
-        shap_values,
-        X_test,
-        max_display=28,
-        feature_names=features_short_names,
-        show=False,
-    )
-    plt.savefig(f'shap-{model_factory.name()}.png')
+    print(f'generating SHAP for {model_factory.name()} model')
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test = impute(X_train, X_test)
+        model = model_factory.create_classifier()
+        model.set_params(**params)
+        model = model.fit(X_train, y_train)
+        shap_values = model_factory.shap_values(model, X_train, X_test)
+        shap.summary_plot(
+            shap_values,
+            X_test,
+            max_display=28,
+            feature_names=features_short_names,
+            show=False,
+        )
+        plt.savefig(f'shap-{model_factory.name()}.png')
+    except Exception as e:
+        print(f'Error while trying to plot SHAP of {model_factory.name()}')
+        print(f'Error message: {e}')
 
 
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
-        # RandomForestFactory,
-        # XGBoostFactory,
+        RandomForestFactory,
+        XGBoostFactory,
         # CatBoostFactory,
-        # LightGbmFactory,
+        LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
@@ -566,31 +573,31 @@ def main(filename):
 
 
 if __name__ == '__main__':
-    # main("./dataset.csv")
-    df = pd.read_csv("./dataset.csv")
-    X, y = preprocessing(df)
-    factory = LightGbmFactory()
-
-    # compute SHAP values
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    X_train, X_test = impute(X_train, X_test)
-    model = factory.create_classifier()
-    model.set_params(n_estimators=4, max_depth=64, learning_rate=0.1)
-    model.fit(X_train, y_train)
-    shap_values = factory.shap_values(model, X_train, X_test)
-
-    # explainer = shap.Explainer(
-    #     model.fit(X_train, y_train), X_train
+    main("./dataset.csv")
+    # df = pd.read_csv("./dataset.csv")
+    # X, y = preprocessing(df)
+    # factory = LightGbmFactory()
+    #
+    # # compute SHAP values
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    # X_train, X_test = impute(X_train, X_test)
+    # model = factory.create_classifier()
+    # model.set_params(n_estimators=4, max_depth=64, learning_rate=0.1)
+    # model.fit(X_train, y_train)
+    # shap_values = factory.shap_values(model, X_train, X_test)
+    #
+    # # explainer = shap.Explainer(
+    # #     model.fit(X_train, y_train), X_train
+    # # )
+    # # shap_values = explainer(X_test)
+    # # # explainer = shap.TreeExplainer(model.fit(X_train, y_train), X_train)
+    # # # shap_values = explainer.shap_values(X_test)
+    # shap.summary_plot(
+    #     shap_values,
+    #     X_test,
+    #     max_display=28,
+    #     feature_names=features_short_names,
+    #     plot_size=(15, 15),
+    #     show=False,
     # )
-    # shap_values = explainer(X_test)
-    # # explainer = shap.TreeExplainer(model.fit(X_train, y_train), X_train)
-    # # shap_values = explainer.shap_values(X_test)
-    shap.summary_plot(
-        shap_values,
-        X_test,
-        max_display=28,
-        feature_names=features_short_names,
-        plot_size=(15, 15),
-        show=False,
-    )
-    plt.savefig('shap-lgbm.png')
+    # plt.savefig('shap-lgbm.png')
