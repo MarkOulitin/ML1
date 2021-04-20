@@ -163,7 +163,7 @@ def find_best_hyperparams(X, y, model_factory):
         inner_cv = KFold(n_splits=CV_INNER_N_ITERS)
         model = Pipeline([
             ('over_sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
-            (pipeline_name_classifier, model_factory.create_default_classifier())
+            (pipeline_name_classifier, model_factory.create_classifier())
         ])
         gridCV = GridSearchCV(
             estimator=model,
@@ -241,7 +241,7 @@ def retrain_iter(X, y, params, model_factory, results, i):
 
 
 def get_retrain_model(params, model_factory, i):
-    clf = model_factory.create_default_classifier()
+    clf = model_factory.create_classifier()
     clf.set_params(**params)
     model = Pipeline([
         ('over sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
@@ -366,28 +366,34 @@ def main(filename):
 
 
 if __name__ == '__main__':
-    main("./dataset.csv")
-    # df = pd.read_csv("./dataset.csv")
-    # time_preprocessing_start = time.perf_counter()
-    # X, y = preprocessing(df)
-    # time_preprocessing_end = time.perf_counter()
-    # print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
-    # # X, y = shap.datasets.adult()
-    # # X = X[:600]
-    # # y = y[:600]
+    # main("./dataset.csv")
+    df = pd.read_csv("./dataset.csv")
+    time_preprocessing_start = time.perf_counter()
+    X, y = preprocessing(df)
+    time_preprocessing_end = time.perf_counter()
+    print_time_delta(time_preprocessing_start, time_preprocessing_end, 'preprocessing')
+    # X, y = shap.datasets.adult()
+    # X = X[:600]
+    # y = y[:600]
     # model = RandomForestFactory().create_default_classifier()
     # model.set_params(n_estimators=4, max_depth=64)
-    #
-    # # compute SHAP values
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    # explainer = shap.Explainer(
-    #     model.fit(X_train, y_train), X_train,
-    #     feature_names=features_short_names,
-    # )
-    # shap_values = explainer(X_test)
-    # shap.plots.beeswarm(
-    #     shap_values,
-    #     plot_size=(15, 15), max_display=28,
-    #     show=False
-    # )
-    # plt.savefig('shap-lgbm.png')
+    model = LightGbmFactory().create_classifier()
+    model.set_params(learning_rate=0.1)
+
+    # compute SHAP values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    explainer = shap.Explainer(
+        model.fit(X_train, y_train), X_train,
+        feature_names=features_short_names,
+    )
+    shap_values = explainer(X_test)
+    # explainer = shap.TreeExplainer(model.fit(X_train, y_train), X_train)
+    # shap_values = explainer.shap_values(X_test)
+    shap.summary_plot(
+        shap_values,
+        X_test,
+        max_display=28,
+        feature_names=features_short_names,
+        show=False,
+    )
+    plt.savefig('shap-lgbm.png')

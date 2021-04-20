@@ -12,7 +12,7 @@ class ModelFactory:
     def get_params_grid(self):
         raise NotImplementedError()
 
-    def create_default_classifier(self):
+    def create_classifier(self, **kwargs):
         raise NotImplementedError()
 
     def __str__(self):
@@ -26,8 +26,8 @@ class LogisticRegressionFactory(ModelFactory):
     def get_params_grid(self):
         return {}
 
-    def create_default_classifier(self):
-        return LogisticRegression()
+    def create_classifier(self, **kwargs):
+        return LogisticRegression(**kwargs)
 
 
 class RandomForestFactory(ModelFactory):
@@ -40,8 +40,8 @@ class RandomForestFactory(ModelFactory):
             'max_depth': [2 ** i for i in range(1, 7)],
         }
 
-    def create_default_classifier(self):
-        return RandomForestClassifier()
+    def create_classifier(self, **kwargs):
+        return RandomForestClassifier(**kwargs)
 
 
 class XGBoostFactory(ModelFactory):
@@ -55,8 +55,8 @@ class XGBoostFactory(ModelFactory):
             'learning_rate': [0.01, 0.05, 0.1]
         }
 
-    def create_default_classifier(self):
-        return XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+    def create_classifier(self, **kwargs):
+        return XGBClassifier(use_label_encoder=False, eval_metric='logloss', **kwargs)
 
 
 class CatBoostFactory(ModelFactory):
@@ -65,13 +65,13 @@ class CatBoostFactory(ModelFactory):
 
     def get_params_grid(self):
         return {
-            'n_estimators': [25, 50, 75, 100],
-            'max_depth': [2, 4, 16],
-            'learning_rate': [0.01, 0.05, 0.1]
+            'n_estimators': [100],
+            'max_depth': [16],
+            'learning_rate': [0.01]
         }
 
-    def create_default_classifier(self):
-        return CatBoostClassifier(verbose=False, allow_writing_files=False)
+    def create_classifier(self, **kwargs):
+        return CatBoostClassifier(verbose=False, allow_writing_files=False, **kwargs)
 
 
 class LightGbmFactory(ModelFactory):
@@ -85,5 +85,5 @@ class LightGbmFactory(ModelFactory):
             'learning_rate': [0.01, 0.05, 0.1]
         }
 
-    def create_default_classifier(self):
-        return LGBMClassifier(objective='binary')
+    def create_classifier(self, **kwargs):
+        return LGBMClassifier(objective='binary', **kwargs)
