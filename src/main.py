@@ -334,10 +334,10 @@ def normalize_metric_results(results):
 def print_all_results(results, lbl, newline_after_label):
     models = [
         LogisticRegressionFactory,
-        # RandomForestFactory,
-        # XGBoostFactory,
-        # CatBoostFactory,
-        # LightGbmFactory,
+        RandomForestFactory,
+        XGBoostFactory,
+        CatBoostFactory,
+        LightGbmFactory,
     ]
     metrics = [
         'Accuracy',
