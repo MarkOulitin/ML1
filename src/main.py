@@ -365,7 +365,7 @@ def find_best_hyperparams(X, y, model_factory):
 
     try_write_to_results_file(f'{model_factory.name()} best params:\n')
     try_write_to_results_file(f'{best_params}\n\n')
-    rof.flush()
+    rof_flush()
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
 
@@ -533,8 +533,8 @@ def train_models(X, y):
         final_results[model_factory.name()] = results
         print_all_results(final_results, 'Intermediate', newline_after_label=False)
         if results_output_to_file:
-            print_all_results(final_results, 'Intermediate', newline_after_label=True, f_print=try_write_to_results_file)
-            rof.flush()
+            print_all_results(final_results, 'Intermediate', newline_after_label=False, f_print=try_write_to_results_file)
+            rof_flush()
         print('')
     return final_results
 
@@ -567,13 +567,19 @@ def main(filename):
     print_current_time('end time')
 
 
-def try_write_to_results_file(s):
+def try_write_to_results_file(s, end='\n'):
     if not results_output_to_file:
         return
     try:
         rof.write(s)
+        if end != '':
+            rof.write(end)
     except Exception as e:
         print('Error writing results to file')
+
+def rof_flush():
+    if results_output_to_file:
+        rof.flush()
 
 
 results_output_to_file = False
@@ -581,10 +587,11 @@ rof_name = 'results.txt'
 rof = None
 
 if __name__ == '__main__':
-    results_output_to_file = sys.argv[1] == '-rof'
+    results_output_to_file = len(sys.argv) > 1 and sys.argv[1] == '-rof'
     if results_output_to_file:
         rof = open(rof_name, 'a')
     try:
         main("./dataset.csv")
     finally:
-        rof.close()
+        if results_output_to_file:
+            rof.close()
