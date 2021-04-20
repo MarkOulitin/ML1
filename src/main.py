@@ -28,6 +28,7 @@ features_short_names = [
     "NEU", "CRP", "CREAT", "Urea", "K+",
     "Na", "AST", "ALT"
 ]
+featuresNames = None
 
 
 def print_time_delta(t_s, t_e, lbl):
@@ -53,7 +54,6 @@ def seconds_to_string(dt_s):
     if hours == 0:
         return f'{mins}:{s:.2f} minutes'
     return f'{hours}:{mins}:{s:.2f} hours'
-
 
 
 def split_to_data_and_target(df: pd.DataFrame):
@@ -100,7 +100,126 @@ def impute(X_train, X_test, max_iter=500):
     imputer.fit(X_train)
     X_train = imputer.transform(X_train)
     X_test = imputer.transform(X_test)
+    X_train, performance = addFeatures(X_train)
+    X_test, _ = addFeaturesTest(X_test, performance)
     return X_train, X_test
+
+
+def addFeatures(X):
+    df = pd.DataFrame(data=X, columns=featuresNames)
+    wbc = df["Leukocytes"]
+    eos = df["Eosinophils"]
+    mono = df["Monocytes"]
+    lym = df["Lymphocytes"]
+    plt = df["Platelets"]
+    crp = df["Proteina C reativa mg/dL"]
+    rbc = df["Red blood Cells"]
+    hgb = df["Hemoglobin"]
+    # print(f"WBC min = {np.min(wbc)}, WBC max = {np.max(wbc)}")
+    # print(f"EOS min = {np.min(eos)}, EOS max = {np.max(eos)}")
+    # print(f"MONO min = {np.min(mono)}, MONO max = {np.max(mono)}")
+    # print(f"LYM min = {np.min(lym)}, LYM max = {np.max(lym)}")
+    # print(f"PLT min = {np.min(plt)}, PLT max = {np.max(plt)}")
+    # print(f"CRP min = {np.min(crp)}, CRP max = {np.max(crp)}")
+    # print(f"rbc min = {np.min(rbc)}, RBC max = {np.max(rbc)}")
+    # print(f"HGB min = {np.min(hgb)}, HGB max = {np.max(hgb)}")
+    train_performance = {}
+
+    logged_wbc = np.log([item + 100 for item in wbc])
+    wbc_mean = np.mean(logged_wbc)
+    wbc_std = np.std(logged_wbc)
+    train_performance["wbc_mean"] = wbc_mean
+    train_performance["wbc_std"] = wbc_std
+
+    logged_eos = np.log([item + 100 for item in eos])
+    eos_mean = np.mean(logged_eos)
+    eos_std = np.std(logged_eos)
+    train_performance["eos_mean"] = eos_mean
+    train_performance["eos_std"] = eos_std
+
+    logged_mono = np.log([item + 100 for item in mono])
+    mono_mean = np.mean(logged_mono)
+    mono_std = np.std(logged_mono)
+    train_performance["mono_mean"] = mono_mean
+    train_performance["mono_std"] = mono_std
+
+    logged_lym = np.log([item + 100 for item in lym])
+    lym_mean = np.mean(logged_lym)
+    lym_std = np.std(logged_lym)
+    train_performance["lym_mean"] = lym_mean
+    train_performance["lym_std"] = lym_std
+
+    logged_plt = np.log([item + 100 for item in plt])
+    plt_mean = np.mean(logged_plt)
+    plt_std = np.std(logged_plt)
+    train_performance["plt_mean"] = plt_mean
+    train_performance["plt_std"] = plt_std
+
+    logged_crp = np.log([item + 100 for item in crp])
+    crp_mean = np.mean(logged_crp)
+    crp_std = np.std(logged_crp)
+    train_performance["crp_mean"] = crp_mean
+    train_performance["crp_std"] = crp_std
+
+    logged_rbc = np.log([item + 100 for item in rbc])
+    rbc_mean = np.mean(logged_rbc)
+    rbc_std = np.std(logged_rbc)
+    train_performance["rbc_mean"] = rbc_mean
+    train_performance["rbc_std"] = rbc_std
+
+    logged_hgb = np.log([item + 100 for item in hgb])
+    hgb_mean = np.mean(logged_hgb)
+    hgb_std = np.std(logged_hgb)
+    train_performance["hgb_mean"] = hgb_mean
+    train_performance["hgb_std"] = hgb_std
+    # 1. normalized = [(wbc_row * plt_row) / (wbc_mean * plt_mean) for wbc_row, plt_row in zip(logged_wbc, logged_plt)]
+    # 2. normalized = [(plt_val + rbc_val) / (plt_mean * rbc_mean) for plt_val, rbc_val in zip(logged_plt, logged_rbc)]
+    # 3. normalized = [(wbc_val * eos_val * mono_val * lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean)  for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    # 4. normalized = [(wbc_val + eos_val + mono_val + lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean) for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    normalized = [(plt_val - (rbc_val + wbc_val)) / (rbc_mean * plt_mean * wbc_mean) for
+                  crp_val, plt_val, wbc_val, rbc_val in zip(logged_crp, logged_plt, logged_wbc, logged_rbc)]
+    df['NewFeature'] = normalized
+    return df.values, train_performance
+
+
+def addFeaturesTest(X, performance):
+    df = pd.DataFrame(data=X, columns=featuresNames)
+    wbc = df["Leukocytes"]
+    eos = df["Eosinophils"]
+    mono = df["Monocytes"]
+    lym = df["Lymphocytes"]
+    plt = df["Platelets"]
+    crp = df["Proteina C reativa mg/dL"]
+    rbc = df["Red blood Cells"]
+    hgb = df["Hemoglobin"]
+
+    logged_wbc = np.log([item + 100 for item in wbc])
+
+    logged_eos = np.log([item + 100 for item in eos])
+
+    logged_mono = np.log([item + 100 for item in mono])
+
+    logged_lym = np.log([item + 100 for item in lym])
+
+    logged_plt = np.log([item + 100 for item in plt])
+
+    logged_crp = np.log([item + 100 for item in crp])
+
+    logged_rbc = np.log([item + 100 for item in rbc])
+
+    logged_hgb = np.log([item + 100 for item in hgb])
+
+    # 1. normalized = [(wbc_row * plt_row) / (performance["wbc_mean"] * performance["plt_mean"]) for wbc_row, plt_row in zip(logged_wbc, logged_plt)]
+    # 2. normalized = [(plt_val + rbc_val) / (performance["plt_mean"] * performance["rbc_mean"]) for plt_val, rbc_val in zip(logged_plt, logged_rbc)]
+    # 3. normalized = [(wbc_val * eos_val * mono_val * lym_val) / (performance["wbc_mean"] * performance["eos_mean"] * performance["mono_mean"] * performance["lym_mean"])  for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    # 4. normalized = [(wbc_val + eos_val + mono_val + lym_val) / (performance["wbc_mean"] * performance["eos_mean"] * performance["mono_mean"] * performance["lym_mean"]) for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+
+    normalized = [
+        (plt_val - (rbc_val + wbc_val)) / (performance["rbc_mean"] * performance["plt_mean"] * performance["wbc_mean"])
+        for
+        crp_val, plt_val, wbc_val, rbc_val in zip(logged_crp, logged_plt, logged_wbc, logged_rbc)]
+    df['NewFeature'] = normalized
+    return df.values
 
 
 def preprocessing(df):
@@ -182,7 +301,7 @@ def preprocessing(df):
     # hgb_mean = np.mean(logged_hgb)
     # hgb_std = np.std(logged_hgb)
     # 1. normalized = [(wbc_row * plt_row) / (wbc_mean * plt_mean) for wbc_row, plt_row in zip(logged_wbc, logged_plt)]
-    # 2. normalized = [(plt_val + rbc_val) / (plt_mean * rbc_val) for plt_val, rbc_val in zip(logged_plt, logged_rbc)]
+    # 2. normalized = [(plt_val + rbc_val) / (plt_mean * rbc_mean) for plt_val, rbc_val in zip(logged_plt, logged_rbc)]
     # 3. normalized = [(wbc_val * eos_val * mono_val * lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean)  for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
     # 4. normalized = [(wbc_val + eos_val + mono_val + lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean) for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
     # normalized = [(plt_val - (rbc_val + wbc_val)) / (rbc_mean * plt_mean * wbc_mean) for crp_val, plt_val, wbc_val, rbc_val in zip(logged_crp, logged_plt, logged_wbc, logged_rbc)]
