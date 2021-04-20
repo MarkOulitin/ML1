@@ -1,5 +1,6 @@
 import time
 from datetime import datetime
+import sys
 from pprint import pprint
 
 import pandas as pd
@@ -19,31 +20,6 @@ from ModelFactory import *
 
 CV_INNER_N_ITERS = 5
 CV_OUTER_N_ITERS = 5
-features = [0,
-            2,
-            6,
-            7,
-            8,
-            10,
-            11,
-            12,
-            15,
-            13,
-            14,
-            16,
-            92,
-            17,
-            19,
-            18,
-            9,
-            39,
-            41,
-            42,
-            40,
-            43,
-            44,
-            48,
-            47]
 
 features_short_names = [
     "HCT", "HGB", "PLT", "RBC", "LYM",
@@ -52,6 +28,18 @@ features_short_names = [
     "NEU", "CRP", "CREAT", "Urea", "K+",
     "Na", "AST", "ALT"
 ]
+
+
+def print_time_delta(t_s, t_e, lbl):
+    if lbl != "":
+        lbl = lbl + " "
+    print(f'{lbl}time took: {seconds_to_string(t_e - t_s)}')
+
+
+def print_current_time(lbl):
+    if lbl != '':
+        lbl = lbl + ': '
+    print(f'{lbl}{datetime.now().strftime("%H:%M:%S")}')
 
 
 def seconds_to_string(dt_s):
@@ -66,17 +54,6 @@ def seconds_to_string(dt_s):
         return f'{mins}:{s:.2f} minutes'
     return f'{hours}:{mins}:{s:.2f} hours'
 
-
-def print_time_delta(t_s, t_e, lbl):
-    if lbl != "":
-        lbl = lbl + " "
-    print(f'{lbl}time took: {seconds_to_string(t_e - t_s)}')
-
-
-def print_current_time(lbl):
-    if lbl != '':
-        lbl = lbl + ': '
-    print(f'{lbl}{datetime.now().strftime("%H:%M:%S")}')
 
 
 def split_to_data_and_target(df: pd.DataFrame):
@@ -102,7 +79,7 @@ def filter_nulls(df: pd.DataFrame):
     return df[df.apply(predicate, axis=1)]
 
 
-def project_columns(df: pd.DataFrame):
+def project_columns(df: pd.DataFrame, features):
     return df[df.columns[features]]
 
 
@@ -112,25 +89,103 @@ def impute(X):
     return imputer.transform(X)
 
 
-def categorize_feature(df, feature_index, new_feature_name):
-    vals = df.iloc[:, feature_index]
-    mean = np.mean(vals)
-    std = np.std(vals)
-
-    df.loc[df[df.columns[feature_index]] < mean - 0.5*std, [new_feature_name]] = 0 # low
-    df.loc[df[df.columns[feature_index]] >= mean - 0.5*std, [new_feature_name]] = 1 # medium
-    df.loc[df[df.columns[feature_index]] > mean + 0.5*std, [new_feature_name]] = 2 # high
-    df[new_feature_name] = df[new_feature_name].astype('int32')
-    return mean, std
+# MAYBE def categorize_feature(df, feature_index, new_feature_name):
+#     vals = df.iloc[:, feature_index]
+#     mean = np.mean(vals)
+#     std = np.std(vals)
+#
+#     df.loc[df[df.columns[feature_index]] < mean - 0.5*std, [new_feature_name]] = 0 # low
+#     df.loc[df[df.columns[feature_index]] >= mean - 0.5*std, [new_feature_name]] = 1 # medium
+#     df.loc[df[df.columns[feature_index]] > mean + 0.5*std, [new_feature_name]] = 2 # high
+#     df[new_feature_name] = df[new_feature_name].astype('int32')
+#     return mean, std
 
 
 def preprocessing(df):
-    df = project_columns(df)
+    features = [0,
+                2,
+                6,
+                7,
+                8,
+                10,
+                11,
+                12,
+                15,
+                13,
+                14,
+                16,
+                92,
+                17,
+                19,
+                18,
+                9,
+                39,
+                41,
+                42,
+                40,
+                43,
+                44,
+                48,
+                47]
+    #  np.mean(np_arr), np.std(np_arr)
+    # wbc_index = df.columns.get_loc("Leukocytes")
+    # plt_index = df.columns.get_loc("Platelets")
+    df = project_columns(df, features)
     df = filter_nulls(df)
     convert_exam_results_to_binary(df)
+    featuresNames = [name for name in df.columns if not (name == 'Patient ID' or name == 'SARS-Cov-2 exam result')]
     X, y = split_to_data_and_target(df)
-    X = impute(X)
     return X, y
+    # X = impute(X)
+    # df = pd.DataFrame(data=X, columns=featuresNames)
+    # wbc = df["Leukocytes"]
+    # eos = df["Eosinophils"]
+    # mono = df["Monocytes"]
+    # lym = df["Lymphocytes"]
+    # plt = df["Platelets"]
+    # crp = df["Proteina C reativa mg/dL"]
+    # rbc = df["Red blood Cells"]
+    # hgb = df["Hemoglobin"]
+
+    # print(f"WBC min = {np.min(wbc)}, WBC max = {np.max(wbc)}")
+    # print(f"EOS min = {np.min(eos)}, EOS max = {np.max(eos)}")
+    # print(f"MONO min = {np.min(mono)}, MONO max = {np.max(mono)}")
+    # print(f"LYM min = {np.min(lym)}, LYM max = {np.max(lym)}")
+    # print(f"PLT min = {np.min(plt)}, PLT max = {np.max(plt)}")
+    # print(f"CRP min = {np.min(crp)}, CRP max = {np.max(crp)}")
+    # print(f"rbc min = {np.min(rbc)}, RBC max = {np.max(rbc)}")
+    # print(f"HGB min = {np.min(hgb)}, HGB max = {np.max(hgb)}")
+    # logged_wbc = np.log([item + 100 for item in wbc])
+    # wbc_mean = np.mean(logged_wbc)
+    # wbc_std = np.std(logged_wbc)
+    # logged_eos = np.log([item + 100 for item in eos])
+    # eos_mean = np.mean(logged_eos)
+    # eos_std = np.std(logged_eos)
+    # logged_mono = np.log([item + 100 for item in mono])
+    # mono_mean = np.mean(logged_mono)
+    # mono_std = np.std(logged_mono)
+    # logged_lym = np.log([item + 100 for item in lym])
+    # lym_mean = np.mean(logged_lym)
+    # lym_std = np.std(logged_lym)
+    # logged_plt = np.log([item + 100 for item in plt])
+    # plt_mean = np.mean(logged_plt)
+    # plt_std = np.std(logged_plt)
+    # logged_crp = np.log([item + 100 for item in crp])
+    # crp_mean = np.mean(logged_crp)
+    # crp_std = np.std(logged_crp)
+    # logged_rbc = np.log([item + 100 for item in rbc])
+    # rbc_mean = np.mean(logged_rbc)
+    # rbc_std = np.std(logged_rbc)
+    # logged_hgb = np.log([item + 100 for item in hgb])
+    # hgb_mean = np.mean(logged_hgb)
+    # hgb_std = np.std(logged_hgb)
+    # 1. normalized = [(wbc_row * plt_row) / (wbc_mean * plt_mean) for wbc_row, plt_row in zip(logged_wbc, logged_plt)]
+    # 2. normalized = [(plt_val + rbc_val) / (plt_mean * rbc_val) for plt_val, rbc_val in zip(logged_plt, logged_rbc)]
+    # 3. normalized = [(wbc_val * eos_val * mono_val * lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean)  for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    # 4. normalized = [(wbc_val + eos_val + mono_val + lym_val) / (wbc_mean * eos_mean * mono_mean * lym_mean) for wbc_val, eos_val, mono_val, lym_val in zip(logged_wbc, logged_eos, logged_mono, logged_lym)]
+    # normalized = [(plt_val - (rbc_val + wbc_val)) / (rbc_mean * plt_mean * wbc_mean) for crp_val, plt_val, wbc_val, rbc_val in zip(logged_crp, logged_plt, logged_wbc, logged_rbc)]
+    # df['WBC*PLT / WBC.avg * PLT.avg'] = normalized
+    # return df.values, y
 
 
 # template code taken from https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
@@ -156,9 +211,13 @@ def find_best_hyperparams(X, y, model_factory):
     for train_xi, test_xi in outer_cv.split(X):
         X_train, X_test = X[train_xi, :], X[test_xi, :]
         y_train, y_test = y[train_xi], y[test_xi]
-
         print(f"inner cross validation iteration {i}/{CV_INNER_N_ITERS} params of {model_factory.name()}:")
         time_iter_start = time.perf_counter()
+
+        imputer = IterativeImputer(max_iter=250)
+        imputer.fit(X_train)
+        X_train = imputer.transform(X_train)
+        X_test = imputer.transform(X_test)
 
         inner_cv = KFold(n_splits=CV_INNER_N_ITERS)
         model = Pipeline([
@@ -234,6 +293,12 @@ def retrain(X, y, params, model_factory, results):
 
 def retrain_iter(X, y, params, model_factory, results, i):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    imputer = IterativeImputer(max_iter=250)
+    imputer.fit(X_train)
+    X_train = imputer.transform(X_train)
+    X_test = imputer.transform(X_test)
+
     model = get_retrain_model(params, model_factory, i)
     model.fit(X_train, y_train)
     prediction = model.predict(X_test)
@@ -253,6 +318,7 @@ def get_retrain_model(params, model_factory, i):
 def append_scores(results, y_test, prediction):
     def _f1_score(y_true, y_prediction):
         return f1_score(y_true, y_prediction, average='macro')
+
     score_evals = [
         ('Accuracy', accuracy_score),
         ('F1-score', _f1_score),
@@ -273,10 +339,10 @@ def normalize_metric_results(results):
 def print_all_results(results, lbl, newline_after_label):
     models = [
         LogisticRegressionFactory,
-        RandomForestFactory,
-        XGBoostFactory,
-        CatBoostFactory,
-        LightGbmFactory,
+        # RandomForestFactory,
+        # XGBoostFactory,
+        # CatBoostFactory,
+        # LightGbmFactory,
     ]
     metrics = [
         'Accuracy',
@@ -323,10 +389,10 @@ def print_model_metric(metric, model_results):
 def train_models(X, y):
     models = [
         LogisticRegressionFactory,
-        RandomForestFactory,
-        XGBoostFactory,
-        CatBoostFactory,
-        LightGbmFactory,
+        # RandomForestFactory,
+        # XGBoostFactory,
+        # CatBoostFactory,
+        # LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
