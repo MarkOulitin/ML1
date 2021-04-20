@@ -60,7 +60,7 @@ class RandomForestFactory(ModelFactory):
 
     def shap_values(self, model, X_train, X_test):
         explainer = shap.TreeExplainer(model, X_train)
-        shap_values = explainer.shap_values(X_test)
+        shap_values = explainer.shap_values(X_test, check_additivity=False)
         return shap_values
 
 

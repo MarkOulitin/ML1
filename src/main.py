@@ -95,7 +95,7 @@ def project_columns(df: pd.DataFrame, features):
 #     return mean, std
 
 
-def impute(X_train, X_test, max_iter=500):
+def impute(X_train, X_test, max_iter=1000):
     imputer = IterativeImputer(max_iter=max_iter)
     imputer.fit(X_train)
     X_train = imputer.transform(X_train)
@@ -381,7 +381,7 @@ def print_model_metric(metric, model_results):
     print(f' {value_str.ljust(max(9, len(metric)))} |', end='')
 
 
-def shap_plot(model_factory, params):
+def shap_plot(model_factory, params, X, y):
     if not model_factory.should_plot_shap():
         print(f'model {model_factory.name()} not supporting SHAP')
         return
@@ -409,11 +409,11 @@ def shap_plot(model_factory, params):
 
 def train_models(X, y):
     models = [
-        LogisticRegressionFactory,
+        # LogisticRegressionFactory,
         RandomForestFactory,
-        XGBoostFactory,
+        # XGBoostFactory,
         # CatBoostFactory,
-        LightGbmFactory,
+        # LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
@@ -428,7 +428,7 @@ def train_models(X, y):
 def train_model(X, y, model_factory):
     params = find_best_hyperparams(X, y, model_factory)
     results = calculate_test_metrics(X, y, params, model_factory)
-    shap_plot(model_factory, params)
+    shap_plot(model_factory, params, X, y)
     return results
 
 
