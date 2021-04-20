@@ -1,3 +1,5 @@
+import timeit
+from datetime import datetime
 from pprint import pprint
 
 import pandas as pd
@@ -13,6 +15,8 @@ from sklearn.model_selection import KFold, GridSearchCV, train_test_split
 
 from ModelFactory import *
 
+CV_INNER_N_ITERS = 5
+CV_OUTER_N_ITERS = 5
 features = [0,
             2,
             6,
@@ -38,6 +42,19 @@ features = [0,
             44,
             48,
             47]
+
+
+def seconds_to_string(dt_s):
+    if dt_s < 0:
+        return f'<<negative time: {dt_s:.2f}>>'
+    s = dt_s % 60
+    mins = int(dt_s // 60)
+    if mins == 0:
+        return f'{s:.2f}s'
+    hours = int(mins // 60)
+    if hours == 0:
+        return f'{mins}:{s:.2f} minutes'
+    return f'{hours}:{mins}:{s:.2f} hours'
 
 
 def split_to_data_and_target(df: pd.DataFrame):
@@ -85,23 +102,29 @@ def preprocessing(df):
 def find_best_hyperparams(X, y, model_factory):
     pipeline_name_classifier = 'classifier'
     pipeline_classifier_params_prefix = f'{pipeline_name_classifier}__'
+    model_parms = model_factory.get_params_grid()
     params_grid = convert_params_dict_to_pipeline_params(
-        model_factory.get_params_grid(),
+        model_parms,
         pipeline_classifier_params_prefix
     )
     print(f"running {model_factory.name()}:")
     print('Params grid:')
-    pprint(params_grid)
+    pprint(model_parms)
 
-    outer_cv = KFold(n_splits=5)
+    time_outer_cv_start = timeit.timeit()
+
+    outer_cv = KFold(n_splits=CV_OUTER_N_ITERS)
     best_score = None
     best_params = None
-    i = 0
+    i = 1
     for train_xi, test_xi in outer_cv.split(X):
         X_train, X_test = X[train_xi, :], X[test_xi, :]
         y_train, y_test = y[train_xi], y[test_xi]
 
-        inner_cv = KFold(n_splits=5)
+        print(f"inner cross validation iteration {i}/{CV_INNER_N_ITERS} params of {model_factory.name()}:")
+        time_iter_start = timeit.timeit()
+
+        inner_cv = KFold(n_splits=CV_INNER_N_ITERS)
         model = Pipeline([
             ('over_sampling', SVMSMOTE(sampling_strategy=1, k_neighbors=5)),
             (pipeline_name_classifier, model_factory.create_default_classifier())
@@ -121,9 +144,10 @@ def find_best_hyperparams(X, y, model_factory):
         y_predict = best_model.predict(X_test)
         score = f1_score(y_test, y_predict, average='macro')
 
-        print(f"inner cross validation iteration {i} params:")
+        time_iter_end = timeit.timeit()
         pprint(result.best_params_)
         print(f"score: {score}")
+        print(f'iteration time took: {seconds_to_string(time_iter_end - time_iter_start)}')
 
         if best_score is None or score > best_score:
             best_score = score
@@ -131,6 +155,8 @@ def find_best_hyperparams(X, y, model_factory):
 
         i += 1
 
+    time_outer_cv_end = timeit.timeit()
+    print(f'model time took: {seconds_to_string(time_outer_cv_end - time_outer_cv_start)}')
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
@@ -278,12 +304,27 @@ def train_model(X, y, model_factory):
     return results
 
 
-def main(filename):
-    df = pd.read_csv(filename)
+def train_all(df):
     X, y = preprocessing(df)
     print("finish preprocessing")
     final_results = train_models(X, y)
+    return final_results
+
+
+def start(filename):
+    df = pd.read_csv(filename)
+    final_results = train_all(df)
+    time_end = timeit.timeit()
     print_all_results(final_results)
+    return final_results, time_end
+
+
+def main(filename):
+    time_start = timeit.timeit()
+    print(f'start time: {datetime.now().strftime("%H:%M:%S")}')
+    final_results, time_end = start(filename)
+    print(f'total time took: {seconds_to_string(time_end - time_start)}')
+    print(f'end time: {datetime.now().strftime("%H:%M:%S")}')
 
 
 if __name__ == '__main__':
