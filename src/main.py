@@ -252,7 +252,7 @@ def find_best_hyperparams(X, y, model_factory):
     print("best params:")
     pprint(best_params)
     print(f"score: {best_score}")
-    print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model {model_factory.name()}')
+    print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model parameter tuning {model_factory.name()}')
     print('')
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
@@ -286,6 +286,7 @@ def calculate_test_metrics(X, y, params, model_factory):
 
 def retrain(X, y, params, model_factory, results):
     for i in range(1, 11):
+        print(f'retraining iteration {i}/{10} of {model_factory.name()} model')
         retrain_iter(X, y, params, model_factory, results, i)
 
 
@@ -382,8 +383,10 @@ def print_model_metric(metric, model_results):
 
 def shap_plot(model_factory, params):
     if not model_factory.should_plot_shap():
+        print(f'model {model_factory.name()} not supporting SHAP')
         return
 
+    print(f'generating SHAP for {model_factory.name()} model')
     try:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         X_train, X_test = impute(X_train, X_test)
