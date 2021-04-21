@@ -88,8 +88,8 @@ def impute(X_train, X_test, max_iter=1000):
     imputer.fit(X_train)
     X_train = imputer.transform(X_train)
     X_test = imputer.transform(X_test)
-    X_train, performance = addFeatures(X_train)
-    X_test = addFeaturesTest(X_test, performance)
+    #X_train, performance = addFeatures(X_train)
+    #X_test = addFeaturesTest(X_test, performance)
     return X_train, X_test
 
 
@@ -363,8 +363,8 @@ def find_best_hyperparams(X, y, model_factory):
     print_time_delta(time_outer_cv_start, time_outer_cv_end, f'model parameter tuning {model_factory.name()}')
     print('')
 
-    try_write_to_results_file(f'{model_factory.name()} best params:\n')
-    try_write_to_results_file(f'{best_params}\n\n')
+    try_write_to_results_file(f'{model_factory.name()} best params:')
+    try_write_to_results_file(f'{best_params}\n')
     rof_flush()
 
     return convert_pipeline_params_to_params_dict(best_params, pipeline_classifier_params_prefix)
@@ -520,11 +520,11 @@ def shap_plot(model_factory, params, X, y):
 
 def train_models(X, y):
     models = [
-        # LogisticRegressionFactory,
+        #LogisticRegressionFactory,
         RandomForestFactory,
-        XGBoostFactory,
-        # CatBoostFactory,
-        LightGbmFactory,
+        #XGBoostFactory,
+        #CatBoostFactory,
+        #LightGbmFactory,
     ]
     final_results = {}
     for model_factory_class in models:
@@ -534,6 +534,7 @@ def train_models(X, y):
         print_all_results(final_results, 'Intermediate', newline_after_label=False)
         if results_output_to_file:
             print_all_results(final_results, 'Intermediate', newline_after_label=False, f_print=try_write_to_results_file)
+            try_write_to_results_file('\n')
             rof_flush()
         print('')
     return final_results

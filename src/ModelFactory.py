@@ -72,9 +72,9 @@ class CatBoostFactory(ModelFactory):
 
     def get_params_grid(self):
         return {
-            'n_estimators': [100],
-            'max_depth': [16],
-            'learning_rate': [0.01]
+            'n_estimators': list(range(10, 40, 10)) + list(range(45, 105, 5)),
+            'max_depth': [2, 4, 8],
+            'learning_rate': [0.01, 0.05, 0.1]
         }
 
     def create_classifier(self, **kwargs):
